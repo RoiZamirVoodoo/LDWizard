@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="upload-card">
+        <h2>Upload Game Data</h2>
+        <p class="subtitle">Select your Level Data and Level Parameters files to begin analysis.</p>
+
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            <div class="file-input-group">
+                <label for="level_data">Level Data</label>
+                <input type="file" class="form-control" id="level_data" name="level_data" accept=".xlsx,.xls,.csv" required>
+                <div class="form-text">Analytics export file (.xlsx or .csv) — contains player metrics per level</div>
+            </div>
+
+            <div class="file-input-group">
+                <label for="level_params">Level Parameters <span class="text-muted" style="font-weight: normal; font-size: 0.85em;">(Optional)</span></label>
+                <input type="file" class="form-control" id="level_params" name="level_params" accept=".xlsx,.xls,.csv">
+                <div class="form-text">Level properties export (.xlsx or .csv) — contains design parameters per level. If omitted, mechanics analysis will be unavailable.</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">Analyze</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
