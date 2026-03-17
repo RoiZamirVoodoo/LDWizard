@@ -1,0 +1,501 @@
+Level Name,Red,Blue,Green,Yellow,Orange,Pink,Turqoise,Brown,Purple,Blocker,Feature 0,Feature 1,Feature 2,Feature 3,Spline 1,Deposit Point Count,Deposit Box Count,Queue Count,Color Count,Total Tile Count,Difficulty
+HitFunnel_V2_Level 1,✓,✓,-,-,-,-,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,2,2,2,2,12,Easy
+HitFunnel_V2_Level 2,✓,✓,-,-,-,-,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,2,4,2,2,24,Easy
+HitFunnel_V2_Level 3,✓,✓,-,-,-,-,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,2,6,2,2,36,Easy
+HitFunnel_V2_Level 4,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,1,5,1,3,30,Easy
+HitFunnel_V2_Level 5,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,-,Spline_S,2,12,2,3,72,Medium
+HitFunnel_V2_Level 6,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,-,Spline_L_VerticalTop_RightToLeft,2,9,2,3,54,Easy
+HitFunnel_V2_Level 7,✓,✓,-,-,-,-,-,-,-,-,-,-,-,-,Spline_BigJ,2,7,1,2,42,Easy
+HitFunnel_V2_Level 8,✓,✓,-,-,-,-,-,-,-,-,HiddenTiles,-,-,-,Spline_L_RightToLeft,2,4,2,2,24,Easy
+HitFunnel_V2_Level 9,✓,✓,✓,-,-,-,-,-,-,-,HiddenTiles,-,-,-,Spline_Horizontal_11m,3,18,3,3,108,Easy
+HitFunnel_V2_Level 10,✓,✓,✓,✓,-,-,-,-,-,-,HiddenTiles,-,-,-,Spline_L_VerticalTop_LeftToRight,3,24,3,4,144,Easy
+HitFunnel_V2_Level 11,✓,✓,✓,✓,-,-,-,-,-,-,HiddenBoxes,-,-,-,Spline_Tight,2,8,4,4,48,Easy
+HitFunnel_V2_Level 12,✓,✓,✓,✓,-,-,-,-,-,-,HiddenBoxes,-,-,-,Spline_Tick,3,16,2,4,96,Medium
+HitFunnel_V2_Level 13,✓,✓,✓,✓,-,-,-,-,-,-,HiddenBoxes,-,-,-,Spline_S,3,24,4,4,144,Easy
+HitFunnel_V2_Level 14,✓,✓,✓,✓,-,-,-,-,-,-,BoxConnector,-,-,-,Spline_L_RightToLeft,2,8,2,4,48,Medium
+HitFunnel_V2_Level 15,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,-,-,-,Spline_Horizontal_11m,4,20,4,5,120,Easy
+HitFunnel_V2_Level 16,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,BoxConnector,-,-,Spline_BigU,4,20,4,5,120,Easy
+HitFunnel_V2_Level 17,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_Curve,5,48,4,4,288,Medium
+HitFunnel_V2_Level 18,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_Horizontal_12m,8,36,4,6,216,Hard
+HitFunnel_V2_Level 19,✓,✓,✓,✓,-,-,-,-,-,-,HiddenBoxes,-,-,-,Spline_L_RightToLeft,3,12,2,4,72,Easy
+HitFunnel_V2_Level 20,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_VerticalTop_RightToLeft,3,24,3,6,144,Easy
+HitFunnel_V2_Level 21,✓,✓,✓,✓,-,-,-,-,-,-,TileChain,-,-,-,Spline_Horizontal_11m,3,12,2,4,72,Easy
+HitFunnel_V2_Level 22,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_C_Reverse,4,20,3,5,120,Easy
+HitFunnel_V2_Level 23,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,-,-,-,Spline_ShortTick,5,24,4,6,144,Medium
+HitFunnel_V2_Level 24,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_S_2,2,12,4,6,72,Easy
+HitFunnel_V2_Level 25,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_UpdateBatch_2,4,20,4,5,120,Hard
+HitFunnel_V2_Level 26,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,4,12,4,6,72,Easy
+HitFunnel_V2_Level 27,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,-,-,-,Spline_S_Reverse,3,24,4,6,144,Medium
+HitFunnel_V2_Level 28,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_Tick,5,24,4,4,144,Easy
+HitFunnel_V2_Level 29,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_L_VerticalTop_LeftToRight,3,20,4,5,120,Medium
+HitFunnel_V2_Level 30,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,-,-,-,Spline_Tight,5,30,4,6,180,VeryHard
+HitFunnel_V2_Level 31,✓,✓,✓,✓,-,-,-,-,-,-,LockedDepositPoints,-,-,-,Spline_Horizontal_11m,2,12,2,4,72,Easy
+HitFunnel_V2_Level 32,✓,✓,✓,✓,-,-,-,-,-,-,LockedDepositPoints,-,-,-,Spline_S_4,4,24,3,4,144,Easy
+HitFunnel_V2_Level 33,✓,✓,✓,✓,-,-,-,-,-,-,LockedDepositPoints,-,-,-,Spline_S,3,24,3,4,144,Medium
+HitFunnel_V2_Level 34,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_S_3,2,20,3,5,120,Easy
+HitFunnel_V2_Level 35,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_UpdateBatch_1,4,20,4,5,120,Hard
+HitFunnel_V2_Level 36,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,-,-,-,Spline_BigU,4,24,3,6,144,Easy
+HitFunnel_V2_Level 37,✓,✓,✓,✓,✓,-,-,-,-,-,LockedDepositPoints,-,-,-,Spline_Tick,5,30,3,5,180,Medium
+HitFunnel_V2_Level 38,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_UpdateBatch_1,4,20,4,5,120,Easy
+HitFunnel_V2_Level 39,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1,3,24,4,6,144,Medium
+HitFunnel_V2_Level 40,✓,✓,✓,✓,✓,✓,✓,-,-,-,LockedDepositPoints,-,-,-,Spline_UpdateBatch_5,6,42,4,7,252,VeryHard
+HitFunnel_V2_Level 41,-,-,-,✓,✓,✓,-,-,-,-,CardPacks,-,-,-,Spline_Horizontal_11m,3,17,3,3,102,Easy
+HitFunnel_V2_Level 42,-,✓,✓,✓,✓,-,-,-,-,-,CardPacks,-,-,-,Spline_UpdateBatch_1,3,18,3,4,108,Easy
+HitFunnel_V2_Level 43,✓,✓,✓,✓,✓,-,-,-,-,-,CardPacks,-,-,-,Spline_S_Reverse,4,30,3,5,180,Medium
+HitFunnel_V2_Level 44,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_L_VerticalTop_RightToLeft,3,20,4,5,120,Easy
+HitFunnel_V2_Level 45,✓,✓,✓,✓,✓,✓,-,-,-,-,CardPacks,LockedDepositPoints,-,-,Spline_L_VerticalTop_LeftToRight,5,42,4,6,252,Hard
+HitFunnel_V2_Level 46,✓,✓,✓,✓,-,-,-,-,-,-,HiddenTiles,-,-,-,Spline_UpdateBatch_4,5,16,3,4,96,Easy
+HitFunnel_V2_Level 47,✓,✓,✓,✓,-,-,-,-,-,-,CardPacks,-,-,-,Spline_Tight,5,28,4,4,168,Medium
+HitFunnel_V2_Level 48,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_UpdateBatch_1,4,30,3,6,180,Easy
+HitFunnel_V2_Level 49,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,-,-,-,Spline_UpdateBatch_3,6,30,4,6,180,Medium
+HitFunnel_V2_Level 50,✓,✓,✓,✓,✓,✓,-,-,-,-,CardPacks,-,-,-,Spline_BigJ,4,24,3,6,144,VeryHard
+HitFunnel_V2_Level 51,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,Spline_Square,2,12,4,5,84,Easy
+HitFunnel_V2_Level 52,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,Spline_ShortTick,4,15,4,5,114,Easy
+HitFunnel_V2_Level 53,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,Spline_UpdateBatch_1,4,15,4,5,110,Medium
+HitFunnel_V2_Level 54,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,-,-,-,Spline_UpdateBatch_2,5,42,4,7,252,Hard
+HitFunnel_V2_Level 55,✓,✓,✓,✓,-,-,-,-,-,-,BoxConnector,-,-,-,Spline_S_4,4,20,3,4,120,Easy
+HitFunnel_V2_Level 56,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,-,-,-,Spline_UpdateBatch_7,2,20,4,5,120,Medium
+HitFunnel_V2_Level 57,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,Spline_S_4,4,24,4,6,242,Hard
+HitFunnel_V2_Level 58,✓,✓,✓,✓,✓,-,✓,-,-,-,TileChain,LockedDepositPoints,-,-,Spline_UpdateBatch_5,6,36,4,6,216,Medium
+HitFunnel_V2_Level 59,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,-,-,-,Spline_BigU,4,20,4,5,120,Medium
+HitFunnel_V2_Level 60,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,DoubleSpline_Vertical_12m,8,36,3,6,231,VeryHard
+HitFunnel_V2_Level 61,✓,✓,✓,✓,-,-,-,-,-,-,HiddenTileGroups,-,-,-,Spline_Triangle,3,12,3,4,72,Easy
+HitFunnel_V2_Level 62,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTileGroups,-,-,-,Spline_Square,3,15,3,5,90,Easy
+HitFunnel_V2_Level 63,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTileGroups,-,-,-,Spline_S_4,4,30,4,6,180,Medium
+HitFunnel_V2_Level 64,-,-,✓,✓,-,✓,✓,-,-,-,-,-,-,-,Spline_Triangle,3,32,3,4,192,Hard
+HitFunnel_V2_Level 65,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,LockedDepositPoints,-,-,Spline_Curve,4,28,4,7,168,Easy
+HitFunnel_V2_Level 66,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_UpdateBatch_3,4,20,4,5,120,Medium
+HitFunnel_V2_Level 67,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTileGroups,-,-,-,Spline_L_VerticalTop_LeftToRight,4,42,4,7,252,Hard
+HitFunnel_V2_Level 68,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_UpdateBatch_1.5,6,28,3,7,168,Medium
+HitFunnel_V2_Level 69,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,DoubleSpline_Horizontal_12m,8,30,4,5,192,Medium
+HitFunnel_V2_Level 70,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTileGroups,-,-,-,Spline_Tick,4,30,4,6,180,VeryHard
+HitFunnel_V2_Level 71,✓,✓,✓,✓,✓,-,-,-,-,-,DeckLocks,-,-,-,Spline_UpdateBatch_3,4,25,4,5,150,Easy
+HitFunnel_V2_Level 72,✓,✓,✓,✓,✓,-,-,-,-,-,DeckLocks,-,-,-,Spline_UpdateBatch_2,3,20,4,5,120,Easy
+HitFunnel_V2_Level 73,✓,✓,✓,✓,✓,✓,-,-,-,-,DeckLocks,-,-,-,Spline_Square,4,24,4,6,144,Medium
+HitFunnel_V2_Level 74,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_UpdateBatch_1.5,8,35,3,7,210,Hard
+HitFunnel_V2_Level 75,✓,✓,✓,✓,✓,-,-,-,-,-,CardPacks,TileChain,-,-,Spline_Tight,5,25,4,5,150,Easy
+HitFunnel_V2_Level 76,✓,✓,✓,✓,✓,✓,-,-,-,-,DeckLocks,-,-,-,Spline_S_4,4,24,3,6,144,Medium
+HitFunnel_V2_Level 77,✓,✓,✓,✓,✓,✓,✓,-,-,-,DeckLocks,-,-,-,Spline_UpdateBatch_8,5,42,4,7,252,Hard
+HitFunnel_V2_Level 78,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,TileWall,-,-,Spline_Tick,3,30,4,6,200,Medium
+HitFunnel_V2_Level 79,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_Horizontal_11m,4,18,3,6,108,Medium
+HitFunnel_V2_Level 80,✓,✓,✓,✓,✓,-,-,-,-,-,DeckLocks,-,-,-,Spline_BigU,4,30,4,5,180,VeryHard
+HitFunnel_V2_Level 81,✓,✓,✓,✓,✓,-,-,-,-,-,Teleport,-,-,-,Spline_S_4,4,8,1,5,78,Easy
+HitFunnel_V2_Level 82,-,✓,✓,✓,✓,-,✓,-,-,-,Teleport,-,-,-,Spline_UpdateBatch_5,4,12,2,5,112,Easy
+HitFunnel_V2_Level 83,✓,✓,✓,✓,✓,-,-,-,-,-,Teleport,-,-,-,DoubleSpline_T,4,30,3,5,230,Medium
+HitFunnel_V2_Level 84,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,H02_Spline_2,4,30,3,5,180,Hard
+HitFunnel_V2_Level 85,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,TileWall,-,-,Spline_Tight,3,26,4,5,166,Easy
+HitFunnel_V2_Level 86,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,-,-,-,Spline_UpdateBatch_3,4,20,3,5,120,Medium
+HitFunnel_V2_Level 87,✓,✓,✓,✓,✓,✓,✓,-,-,-,Teleport,-,-,-,H02_Spline_7,5,36,4,7,246,Hard
+HitFunnel_V2_Level 88,✓,✓,✓,✓,✓,-,-,-,-,-,LockedDepositPoints,TileWall,-,-,Spline_UpdateBatch_1.5,5,25,3,5,184,Medium
+HitFunnel_V2_Level 89,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,-,-,-,Spline_UpdateBatch_4,4,20,3,5,120,Medium
+HitFunnel_V2_Level 90,✓,✓,✓,✓,✓,✓,✓,-,-,-,BoxConnector,Teleport,-,-,Spline_BigJ,4,36,4,7,252,VeryHard
+HitFunnel_V2_Level 91,-,-,✓,-,✓,✓,-,-,-,✓,BlockerTiles,-,-,-,Spline_Horizontal_11m,3,12,2,4,78,Easy
+HitFunnel_V2_Level 92,✓,-,✓,✓,-,-,-,-,-,✓,BlockerTiles,-,-,-,Spline_UpdateBatch_2,3,15,3,4,98,Easy
+HitFunnel_V2_Level 93,✓,✓,✓,✓,✓,-,-,-,-,✓,BlockerTiles,-,-,-,Spline_C_Reverse,3,28,4,6,177,Medium
+HitFunnel_V2_Level 94,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,TileChain,-,-,Spline_UpdateBatch_1.5,7,28,3,7,168,Hard
+HitFunnel_V2_Level 95,✓,✓,✓,✓,-,-,-,-,-,✓,CardPacks,BlockerTiles,-,-,Spline_L_VerticalTop_RightToLeft,3,20,4,5,126,Easy
+HitFunnel_V2_Level 96,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_Square,4,30,4,5,180,Medium
+HitFunnel_V2_Level 97,✓,✓,✓,✓,✓,✓,✓,-,-,✓,BlockerTiles,-,-,-,Spline_L_VerticalTop_LeftToRight,4,42,4,8,264,Hard
+HitFunnel_V2_Level 98,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_UpdateBatch_1.5,8,42,4,7,252,Medium
+HitFunnel_V2_Level 99,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_Square,3,20,4,5,120,Medium
+HitFunnel_V2_Level 100,✓,✓,✓,✓,✓,✓,-,-,-,✓,BlockerTiles,-,-,-,Spline_Square,4,30,3,7,186,VeryHard
+HitFunnel_V2_Level 101,-,-,✓,-,-,✓,✓,-,-,-,LockAndKey,-,-,-,Spline_UpdateBatch_6,3,18,3,3,108,Easy
+HitFunnel_V2_Level 102,✓,-,-,✓,✓,✓,-,-,-,-,LockAndKey,-,-,-,Spline_L_LeftToRight,2,24,4,4,144,Easy
+HitFunnel_V2_Level 103,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,-,-,-,H02_Spline_4,5,36,4,6,216,Medium
+HitFunnel_V2_Level 104,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,-,-,-,DoubleSpline_Horizontal_12m,10,49,4,7,294,Hard
+HitFunnel_V2_Level 105,✓,✓,✓,✓,✓,✓,-,-,-,✓,TileChain,BlockerTiles,-,-,Spline_UpdateBatch_6,5,36,4,7,222,Easy
+HitFunnel_V2_Level 106,✓,✓,✓,✓,✓,-,-,-,-,-,DeckLocks,-,-,-,DoubleSpline_L5,4,25,4,5,150,Medium
+HitFunnel_V2_Level 107,✓,✓,✓,✓,✓,✓,✓,-,-,✓,LockAndKey,BlockerTiles,LockedDepositPoints,-,Spline_UpdateBatch_3,5,35,4,8,214,Hard
+HitFunnel_V2_Level 108,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,BoxConnector,DeckLocks,-,Spline_BigU,5,35,3,7,210,Medium
+HitFunnel_V2_Level 109,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTiles,-,-,-,DoubleSpline_L5,6,28,4,7,168,Medium
+HitFunnel_V2_Level 110,✓,✓,✓,-,✓,✓,✓,-,-,-,LockAndKey,-,-,-,H02_Spline_1,4,42,4,6,252,VeryHard
+HitFunnel_V2_Level 111,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_BigU,4,18,4,6,108,Easy
+HitFunnel_V2_Level 112,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,H02_Spline_7,3,25,4,5,150,Easy
+HitFunnel_V2_Level 113,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,DoubleSpline_DoubleC,5,30,3,5,180,Medium
+HitFunnel_V2_Level 114,✓,✓,-,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_VerticalTop_LeftToRight,5,48,4,5,288,Hard
+HitFunnel_V2_Level 115,✓,✓,✓,✓,-,-,-,-,-,-,LockAndKey,-,-,-,Spline_BigU,4,32,3,4,192,Easy
+HitFunnel_V2_Level 116,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_BigU,4,28,4,7,168,Medium
+HitFunnel_V2_Level 117,✓,✓,✓,✓,✓,-,✓,-,-,-,TileChain,LockedDepositPoints,-,-,Spline_UpdateBatch_5,6,36,4,6,216,Hard
+HitFunnel_V2_Level 118,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileChain,-,-,-,H02_Spline_3,4,26,4,7,156,Medium
+HitFunnel_V2_Level 119,✓,✓,✓,✓,-,-,-,-,-,-,BoxConnector,-,-,-,Spline_ShortTick,4,20,4,4,120,Medium
+HitFunnel_V2_Level 120,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,10,49,3,7,294,VeryHard
+HitFunnel_V2_Level 121,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_6,4,27,2,3,162,Easy
+HitFunnel_V2_Level 122,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTileGroups,-,-,Spline_C_Reverse,4,28,4,7,168,Easy
+HitFunnel_V2_Level 123,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_L5,5,28,3,7,168,Medium
+HitFunnel_V2_Level 124,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,TileWall,-,-,Spline_BigJ,3,24,3,5,168,Hard
+HitFunnel_V2_Level 125,-,✓,-,-,✓,✓,✓,-,-,✓,BlockerTiles,-,-,-,Spline_BigJ,4,24,3,5,154,Easy
+HitFunnel_V2_Level 126,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_C_Reverse,4,30,4,5,180,Medium
+HitFunnel_V2_Level 127,✓,✓,✓,✓,✓,✓,-,-,-,-,CardPacks,-,-,-,Spline_S_4,4,32,4,6,192,Hard
+HitFunnel_V2_Level 128,✓,✓,✓,✓,✓,✓,-,-,-,-,LockedDepositPoints,-,-,-,Spline_UpdateBatch_3,4,42,4,6,252,Medium
+HitFunnel_V2_Level 129,✓,✓,✓,✓,✓,✓,-,-,-,-,DeckLocks,-,-,-,Spline_Square,4,36,3,6,216,Medium
+HitFunnel_V2_Level 130,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_Vertical_12m,8,41,4,7,246,VeryHard
+HitFunnel_V2_Level 131,-,-,-,✓,✓,✓,✓,-,-,-,CardPacks,-,-,-,Spline_UpdateBatch_1.5,4,21,3,4,126,Easy
+HitFunnel_V2_Level 132,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,-,-,-,Spline_UpdateBatch_1,5,25,4,5,150,Easy
+HitFunnel_V2_Level 133,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_7,5,42,4,7,252,Medium
+HitFunnel_V2_Level 134,-,-,✓,✓,✓,✓,✓,-,-,-,LockAndKey,-,-,-,Spline_BigU,5,30,3,5,180,Hard
+HitFunnel_V2_Level 135,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,Spline_Tick,4,32,4,5,210,Easy
+HitFunnel_V2_Level 136,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,Spline_UpdateBatch_1.5,6,24,4,6,204,Medium
+HitFunnel_V2_Level 137,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,BoxConnector,-,DoubleSpline_DoubleC,5,28,3,7,168,Hard
+HitFunnel_V2_Level 138,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_Tick,4,24,3,7,144,Medium
+HitFunnel_V2_Level 139,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_UpdateBatch_2,5,25,3,5,150,Medium
+HitFunnel_V2_Level 140,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,-,-,-,H02_Spline_1,4,36,4,6,216,VeryHard
+HitFunnel_V2_Level 141,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,TileChain,-,-,Spline_Triangle,3,24,4,6,144,Easy
+HitFunnel_V2_Level 142,-,-,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,3,32,3,4,192,Easy
+HitFunnel_V2_Level 143,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_UpdateBatch_2,5,25,3,5,150,Medium
+HitFunnel_V2_Level 144,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_L_VerticalTop_LeftToRight,6,28,3,7,168,Hard
+HitFunnel_V2_Level 145,✓,✓,✓,✓,-,-,-,-,-,-,LockAndKey,-,-,-,Spline_Tick,4,32,4,4,192,Easy
+HitFunnel_V2_Level 146,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,H02_Spline_4,5,36,4,6,216,Medium
+HitFunnel_V2_Level 147,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTiles,BoxConnector,-,-,H02_Spline_1,5,35,4,7,210,Hard
+HitFunnel_V2_Level 148,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,DeckLocks,-,-,Spline_UpdateBatch_7,6,42,3,7,252,Medium
+HitFunnel_V2_Level 149,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,TileChain,LockedDepositPoints,-,Spline_UpdateBatch_7,5,36,4,6,216,Medium
+HitFunnel_V2_Level 150,✓,✓,✓,✓,✓,-,✓,-,-,-,TileWall,-,-,-,Spline_UpdateBatch_6,6,36,3,6,246,VeryHard
+HitFunnel_V2_Level 151,✓,✓,✓,-,-,-,-,-,-,-,IceQueue,-,-,-,Spline_Horizontal_11m,3,11,3,3,66,Easy
+HitFunnel_V2_Level 152,✓,✓,✓,✓,✓,-,-,-,-,-,IceQueue,-,-,-,H02_Spline_2,3,21,4,5,126,Easy
+HitFunnel_V2_Level 153,✓,✓,✓,✓,✓,✓,-,-,-,-,IceQueue,-,-,-,Spline_Square,4,24,4,6,144,Medium
+HitFunnel_V2_Level 154,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,H02_Spline_7,5,33,4,7,198,Hard
+HitFunnel_V2_Level 155,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTileGroups,-,-,-,Spline_S_Reverse,3,27,4,5,162,Easy
+HitFunnel_V2_Level 156,✓,✓,✓,✓,✓,✓,✓,-,-,-,DeckLocks,-,-,-,DoubleSpline_S,6,42,4,7,252,Medium
+HitFunnel_V2_Level 157,✓,✓,✓,✓,✓,✓,-,-,-,-,IceQueue,TileChain,-,-,Spline_C_Reverse,3,30,4,6,180,Hard
+HitFunnel_V2_Level 158,✓,✓,✓,✓,✓,-,-,-,-,✓,BlockerTiles,-,-,-,Spline_L_LeftToRight,3,35,3,6,216,Medium
+HitFunnel_V2_Level 159,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_UpdateBatch_4,5,25,3,6,150,Medium
+HitFunnel_V2_Level 160,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,IceQueue,-,-,DoubleSpline_T,5,30,4,6,180,VeryHard
+26_Q1SIBOX_Level_001,✓,✓,✓,✓,-,-,-,-,-,-,IceBox,-,-,-,Spline_L_LeftToRight,2,12,2,4,72,Easy
+26_Q1SIBOX_Level_002,✓,✓,✓,✓,-,-,-,-,-,-,IceBox,-,-,-,Spline_Horizontal_11m,3,22,2,4,132,Easy
+26_Q1SIBOX_Level_003,✓,✓,✓,✓,✓,-,-,-,-,-,IceBox,-,-,-,DoubleSpline_T,6,26,4,5,156,Medium
+HitFunnel_V2_Level 164,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,LockedDepositPoints,DeckLocks,-,DoubleSpline_Horizontal_12m,6,36,4,6,216,Hard
+HitFunnel_V2_Level 165,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_VerticalTop_RightToLeft,3,24,3,6,144,Easy
+HitFunnel_V2_Level 166,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,TileChain,BoxConnector,-,Spline_UpdateBatch_4,6,36,4,6,216,Medium
+26_Q1SIBOX_Level_004,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceBox,TileWall,-,-,Spline_Tight,5,30,3,7,203,Hard
+HitFunnel_V2_Level 168,-,-,✓,✓,✓,✓,✓,-,-,✓,HiddenTileGroups,BlockerTiles,-,-,H02_Spline_4,4,29,4,6,184,Medium
+HitFunnel_V2_Level 169,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,HiddenTiles,DeckLocks,-,Spline_C_Reverse,4,30,4,5,180,Medium
+26_Q1SIBOX_Level_010,✓,✓,✓,✓,✓,✓,-,-,-,-,IceBox,-,-,-,Spline_S_4,4,30,3,6,180,VeryHard
+HitFunnel_V2_Level 171,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileChain,BoxConnector,-,-,H02_Spline_1,4,28,4,7,168,Easy
+HitFunnel_V2_Level 172,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_VerticalTop_LeftToRight,4,12,4,6,72,Easy
+HitFunnel_V2_Level 173,✓,✓,✓,✓,✓,-,-,-,-,-,CardPacks,TileWall,-,-,H02_Spline_2,4,25,4,5,172,Medium
+HitFunnel_V2_Level 174,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,LockedDepositPoints,-,-,DoubleSpline_Vertical_12m,8,32,3,7,192,Hard
+HitFunnel_V2_Level 175,✓,✓,✓,✓,✓,✓,-,-,-,-,IceQueue,-,-,-,DoubleSpline_S,6,36,4,6,216,Easy
+HitFunnel_V2_Level 176,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceQueue,BoxConnector,-,-,Spline_ShortTick,4,32,4,7,192,Medium
+HitFunnel_V2_Level 177,✓,-,✓,-,✓,✓,✓,-,-,-,HiddenBoxes,BoxConnector,TileWall,-,Spline_UpdateBatch_1.5,8,40,4,5,264,Hard
+HitFunnel_V2_Level 178,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,-,-,-,DoubleSpline_T,6,30,4,6,180,Medium
+HitFunnel_V2_Level 179,✓,✓,✓,✓,✓,✓,-,-,-,-,TileChain,DeckLocks,-,-,Spline_Tick,4,24,4,6,144,Medium
+HitFunnel_V2_Level 180,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,DoubleSpline_L5,6,36,3,6,216,VeryHard
+HitFunnel_V2_Level 181,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTileGroups,LockedDepositPoints,Teleport,-,Spline_Square,5,24,4,5,168,Easy
+HitFunnel_V2_Level 182,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_RightToLeft,3,12,3,6,72,Easy
+HitFunnel_V2_Level 183,✓,✓,✓,✓,✓,-,-,-,-,✓,LockAndKey,BlockerTiles,-,-,Spline_UpdateBatch_8,5,35,4,6,214,Medium
+HitFunnel_V2_Level 184,✓,-,-,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,TileChain,-,DoubleSpline_Horizontal_12m,8,50,3,5,300,Hard
+HitFunnel_V2_Level 185,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_Square,4,24,3,7,144,Easy
+HitFunnel_V2_Level 186,✓,✓,✓,✓,✓,✓,-,-,-,-,BoxConnector,TileWall,-,-,Spline_UpdateBatch_6,3,30,4,6,200,Medium
+HitFunnel_V2_Level 187,✓,✓,✓,✓,✓,✓,✓,-,-,-,CardPacks,LockedDepositPoints,DeckLocks,-,DoubleSpline_Vertical_12m,6,35,4,7,210,Hard
+HitFunnel_V2_Level 188,✓,✓,✓,✓,✓,✓,-,-,-,-,DeckLocks,-,-,-,Spline_S_4,4,30,3,6,180,Medium
+HitFunnel_V2_Level 189,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,TileWall,-,-,Spline_UpdateBatch_2,3,30,4,6,198,Medium
+HitFunnel_V2_Level 190,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,H02_Spline_2,5,30,4,6,180,VeryHard
+26_Q1SCLDP_Level_001,✓,✓,✓,-,-,-,-,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_ShortTick,3,15,4,3,90,Easy
+26_Q1SCLDP_Level_002,✓,✓,✓,✓,-,-,-,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_UpdateBatch_3,4,20,4,4,120,Easy
+26_Q1SCLDP_Level_003,✓,✓,✓,✓,-,✓,-,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_UpdateBatch_6,6,29,3,5,174,Medium
+HitFunnel_V2_Level 194,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_L_LeftToRight,4,28,4,7,168,Hard
+HitFunnel_V2_Level 195,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_7,4,25,4,5,150,Easy
+HitFunnel_V2_Level 196,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,LockedDepositPoints,DeckLocks,-,Spline_Square,4,28,4,7,168,Medium
+26_Q1SCLDP_Level_004,✓,✓,✓,✓,-,✓,✓,-,-,-,HiddenBoxes,ColoredLockedDepositPoints,-,-,Spline_Square,3,30,3,6,180,Hard
+HitFunnel_V2_Level 198,✓,✓,✓,✓,✓,✓,-,-,-,-,LockedDepositPoints,-,-,-,Spline_Curve,5,42,4,6,252,Medium
+HitFunnel_V2_Level 199,✓,✓,✓,✓,✓,-,-,-,-,-,IceQueue,-,-,-,H02_Spline_1,4,30,3,5,180,Medium
+26_Q1SCLDP_Level_020,✓,✓,✓,✓,✓,✓,-,-,-,✓,BlockerTiles,ColoredLockedDepositPoints,-,-,Spline_ShortTick,4,30,3,7,186,VeryHard
+HitFunnel_V2_Level 201,✓,✓,✓,✓,-,-,-,-,-,-,LockAndKey,BoxConnector,-,-,Spline_BigJ,4,28,3,4,168,Easy
+HitFunnel_V2_Level 202,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_T,6,25,4,7,150,Easy
+HitFunnel_V2_Level 203,✓,✓,✓,✓,✓,-,✓,-,-,-,LockedDepositPoints,TileWall,-,-,DoubleSpline_DoubleC,5,36,4,6,256,Medium
+HitFunnel_V2_Level 204,✓,✓,✓,✓,✓,✓,✓,-,-,✓,HiddenBoxes,HiddenTiles,TileChain,BlockerTiles,Spline_Curve,5,35,4,8,218,Hard
+HitFunnel_V2_Level 205,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_Horizontal_12m,6,29,4,7,174,Easy
+HitFunnel_V2_Level 206,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,DeckLocks,-,-,DoubleSpline_DoubleC,4,40,4,5,240,Medium
+HitFunnel_V2_Level 207,✓,✓,✓,✓,✓,✓,-,-,-,✓,CardPacks,HiddenTileGroups,BlockerTiles,-,H02_Spline_2,5,42,4,7,260,Hard
+HitFunnel_V2_Level 208,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_S_Reverse,3,20,4,5,120,Medium
+26_Q1SIBOX_Level_019,✓,✓,✓,✓,✓,-,-,-,-,✓,IceBox,HiddenBoxes,BlockerTiles,-,Spline_UpdateBatch_3,6,30,3,6,192,Medium
+HitFunnel_V2_Level 210,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_Horizontal_12m,6,35,4,7,210,VeryHard
+HitFunnel_V2_Level 211,✓,✓,✓,✓,-,✓,✓,-,-,-,HiddenBoxes,TileWall,-,-,H02_Spline_4,4,29,4,6,198,Easy
+HitFunnel_V2_Level 212,✓,✓,✓,✓,✓,-,-,-,-,✓,HiddenBoxes,BlockerTiles,TileChain,-,H02_Spline_1,5,25,3,6,157,Easy
+HitFunnel_V2_Level 213,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,3,24,3,6,144,Medium
+HitFunnel_V2_Level 214,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceQueue,TileWall,-,-,Spline_Tight,6,36,4,7,240,Hard
+HitFunnel_V2_Level 215,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_S_4,4,25,3,5,150,Easy
+HitFunnel_V2_Level 216,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileChain,-,-,-,Spline_Tick,4,35,4,7,210,Medium
+HitFunnel_V2_Level 217,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,LockAndKey,HiddenTiles,-,H02_Spline_1,6,42,4,7,252,Hard
+HitFunnel_V2_Level 218,✓,✓,✓,✓,✓,-,-,-,-,-,LockedDepositPoints,TileWall,-,-,Spline_UpdateBatch_4,4,40,3,5,272,Medium
+HitFunnel_V2_Level 219,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_C_Reverse,3,24,4,6,144,Medium
+HitFunnel_V2_Level 220,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_Horizontal_11m,4,42,4,7,252,VeryHard
+26_Q1SOBOX_Level_001,✓,✓,✓,-,-,-,-,-,-,-,OpaqueBox,-,-,-,Spline_C_Reverse,2,18,2,3,108,Easy
+26_Q1SOBOX_Level_002,✓,✓,✓,✓,-,-,-,-,-,-,OpaqueBox,-,-,-,Spline_BigU,3,30,3,4,180,Easy
+26_Q1SOBOX_Level_003,✓,✓,✓,✓,✓,-,-,-,-,-,OpaqueBox,-,-,-,Spline_UpdateBatch_6,6,31,3,5,186,Medium
+HitFunnel_V2_Level 224,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,TileChain,DeckLocks,-,Spline_L_VerticalTop_LeftToRight,4,28,4,7,168,Hard
+HitFunnel_V2_Level 225,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,5,20,3,5,120,Easy
+HitFunnel_V2_Level 226,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_Triangle,3,28,4,7,168,Medium
+26_Q1SOBOX_Level_004,✓,✓,✓,✓,✓,✓,-,-,-,-,OpaqueBox,BoxConnector,-,-,Spline_UpdateBatch_3,6,36,4,6,216,Hard
+HitFunnel_V2_Level 228,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,5,25,4,5,150,Medium
+HitFunnel_V2_Level 229,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,DeckLocks,-,-,DoubleSpline_Hakan,5,40,4,5,240,Medium
+26_Q1SOBOX_Level_020,✓,✓,✓,✓,✓,✓,-,-,-,-,OpaqueBox,LockAndKey,DeckLocks,-,H02_Spline_7,3,30,3,6,180,VeryHard
+26_Q1SOBOX_Level_011,✓,✓,✓,✓,-,-,-,-,-,-,IceBox,OpaqueBox,-,-,Spline_Square,4,36,4,4,216,Easy
+26_Q1SIBOX_Level_005,✓,✓,✓,✓,-,-,-,-,-,✓,IceBox,BlockerTiles,TileChain,-,Spline_UpdateBatch_2,4,28,3,5,186,Easy
+HitFunnel_V2_Level 233,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_1,4,24,4,7,144,Medium
+HitFunnel_V2_Level 234,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,TileChain,Teleport,-,H02_Spline_4,5,36,4,6,236,Hard
+HitFunnel_V2_Level 235,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,DoubleSpline_S,2,8,3,4,48,Easy
+HitFunnel_V2_Level 236,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTileGroups,TileWall,-,-,Spline_UpdateBatch_6,5,35,4,7,234,Medium
+26_Q1SIBOX_Level_016,✓,✓,✓,✓,✓,✓,-,-,-,-,IceBox,Teleport,-,-,DoubleSpline_DoubleC,5,30,3,6,204,Hard
+HitFunnel_V2_Level 238,✓,✓,✓,✓,✓,✓,-,-,-,✓,BlockerTiles,LockedDepositPoints,-,-,Spline_S_4,4,36,4,7,223,Medium
+HitFunnel_V2_Level 239,✓,✓,✓,✓,✓,✓,-,-,-,-,IceQueue,-,-,-,Spline_L_LeftToRight,3,30,3,6,180,Medium
+HitFunnel_V2_Level 240,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,BoxConnector,-,-,Spline_UpdateBatch_8,6,30,3,6,180,VeryHard
+HitFunnel_V2_Level 241,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_3,4,20,4,4,120,Easy
+HitFunnel_V2_Level 242,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTiles,DeckLocks,-,-,Spline_UpdateBatch_1.5,8,35,4,7,210,Easy
+HitFunnel_V2_Level 243,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,LockAndKey,-,-,DoubleSpline_Vertical_12m,6,42,4,7,252,Medium
+HitFunnel_V2_Level 244,✓,✓,✓,✓,✓,-,✓,-,-,-,LockedDepositPoints,TileWall,-,-,Spline_Tight,6,36,4,6,266,Hard
+HitFunnel_V2_Level 245,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_Tick,4,28,4,7,168,Easy
+26_Q1SOBOX_Level_017,✓,✓,✓,✓,✓,✓,✓,-,-,-,OpaqueBox,-,-,-,Spline_Hook,4,35,4,7,210,Medium
+HitFunnel_V2_Level 247,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_RightToLeft,3,18,3,6,108,Hard
+HitFunnel_V2_Level 248,-,✓,✓,✓,✓,✓,✓,-,-,-,LockAndKey,DeckLocks,-,-,DoubleSpline_S,6,40,4,6,240,Medium
+HitFunnel_V2_Level 249,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_2,5,25,4,5,150,Medium
+HitFunnel_V2_Level 250,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_Horizontal_12m,8,36,4,6,216,VeryHard
+26_Q1SCOCARD_Level_001,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,2,9,1,3,54,Easy
+26_Q1SCOCARD_Level_002,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_Horizontal_11m,3,16,2,4,96,Easy
+26_Q1SCOCARD_Level_003,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_S,3,25,3,5,150,Medium
+HitFunnel_V2_Level 254,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,TileChain,Teleport,-,Spline_UpdateBatch_4,6,30,4,5,230,Hard
+HitFunnel_V2_Level 255,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_S_Reverse,3,36,3,4,216,Easy
+HitFunnel_V2_Level 256,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,DeckLocks,-,-,H02_Spline_4,4,36,4,6,216,Medium
+26_Q1SCOCARD_Level_004,✓,✓,✓,✓,✓,✓,-,-,-,-,IceQueue,Teleport,-,-,Spline_UpdateBatch_4,4,36,4,6,246,Hard
+HitFunnel_V2_Level 258,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_Triangle,3,24,3,6,144,Medium
+HitFunnel_V2_Level 259,✓,✓,✓,-,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_DoubleC,5,34,4,6,204,Medium
+26_Q1SCOCARD_Level_010,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_3,4,35,4,7,210,VeryHard
+HitFunnel_V2_Level 261,✓,✓,✓,✓,✓,-,-,-,-,-,LockAndKey,HiddenTileGroups,-,-,Spline_Curve,3,20,4,5,120,Easy
+HitFunnel_V2_Level 262,-,-,✓,✓,-,✓,✓,-,-,-,-,-,-,-,Spline_Triangle,3,32,3,4,192,Easy
+HitFunnel_V2_Level 263,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,TileChain,-,-,Spline_Tick,4,36,4,6,216,Medium
+HitFunnel_V2_Level 264,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,DeckLocks,-,-,Spline_BigU,4,24,4,6,162,Hard
+26_Q1SCOCARD_Level_005,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_S_Reverse,3,20,3,4,120,Easy
+HitFunnel_V2_Level 266,-,-,✓,✓,-,✓,✓,-,-,-,LockAndKey,LockedDepositPoints,-,-,Spline_Curve,4,36,4,4,216,Medium
+26_Q1SOBOX_Level_007,✓,✓,✓,✓,-,-,-,-,-,-,OpaqueBox,BoxConnector,-,-,Spline_UpdateBatch_2,4,40,3,4,240,Hard
+HitFunnel_V2_Level 268,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_L5,4,21,4,7,126,Medium
+HitFunnel_V2_Level 269,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,DeckLocks,-,-,Spline_S_Reverse,3,25,4,5,150,Medium
+HitFunnel_V2_Level 270,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,BoxConnector,-,-,Spline_UpdateBatch_1.5,6,27,3,6,162,VeryHard
+HitFunnel_V2_Level 271,-,-,✓,-,✓,✓,✓,-,-,-,-,-,-,-,Spline_C_Reverse,3,24,4,4,144,Easy
+26_Q1SIBOX_Level_012,✓,✓,✓,✓,✓,-,-,-,-,-,IceBox,IceQueue,-,-,Spline_L_VerticalTop_LeftToRight,3,25,4,5,150,Easy
+HitFunnel_V2_Level 273,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_C_Reverse,3,25,4,5,150,Medium
+HitFunnel_V2_Level 274,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTiles,TileWall,-,-,Spline_S_Reverse,4,28,3,7,180,Hard
+HitFunnel_V2_Level 275,✓,✓,✓,✓,-,-,✓,-,-,-,-,-,-,-,DoubleSpline_T,3,30,4,5,180,Easy
+HitFunnel_V2_Level 276,✓,✓,✓,✓,✓,-,-,-,-,✓,LockAndKey,BlockerTiles,-,-,Spline_BigJ,4,30,3,6,186,Medium
+26_Q1SCOCARD_Level_007,✓,✓,✓,✓,-,-,-,-,-,-,HiddenBoxes,OpaqueBox,-,-,Spline_Triangle,3,36,3,4,216,Hard
+HitFunnel_V2_Level 278,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,H02_Spline_1,6,42,4,7,252,Medium
+HitFunnel_V2_Level 279,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,H02_Spline_2,5,35,4,7,210,Medium
+HitFunnel_V2_Level 280,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileChain,BoxConnector,-,-,Spline_S,3,42,4,7,252,VeryHard
+HitFunnel_V2_Level 281,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,30,4,5,180,Easy
+HitFunnel_V2_Level 282,✓,✓,✓,✓,✓,✓,-,-,-,-,LockedDepositPoints,DeckLocks,-,-,DoubleSpline_Horizontal_12m,6,30,4,6,180,Easy
+26_Q1SOBOX_Level_014,✓,✓,✓,✓,✓,✓,-,-,-,-,OpaqueBox,TileChain,Teleport,-,Spline_UpdateBatch_8,4,36,3,6,256,Medium
+HitFunnel_V2_Level 284,✓,✓,✓,✓,✓,-,✓,-,-,✓,BlockerTiles,TileWall,-,-,Spline_S_4,4,35,4,7,250,Hard
+HitFunnel_V2_Level 285,✓,✓,✓,✓,✓,-,-,-,-,-,CardPacks,IceQueue,-,-,Spline_S,3,25,3,5,150,Easy
+HitFunnel_V2_Level 286,✓,✓,✓,✓,✓,-,-,-,-,-,IceQueue,LockedDepositPoints,-,-,Spline_L_VerticalTop_LeftToRight,6,30,4,5,180,Medium
+HitFunnel_V2_Level 287,✓,-,✓,-,-,✓,✓,-,-,-,LockAndKey,TileWall,-,-,Spline_ShortTick,3,28,3,4,188,Hard
+26_Q1SCOCARD_Level_008,✓,✓,✓,✓,✓,✓,-,-,-,-,LockedDepositPoints,-,-,-,Spline_Tight,4,36,4,6,216,Medium
+HitFunnel_V2_Level 289,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,H02_Spline_3,5,25,4,5,150,Medium
+HitFunnel_V2_Level 290,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_Vertical_12m,8,34,3,6,204,VeryHard
+26_Q1SCLDP_Level_011,✓,✓,-,✓,✓,-,✓,-,-,-,ColoredLockedDepositPoints,-,-,-,H02_Spline_3,4,25,3,5,150,Easy
+26_Q1SOBOX_Level_015,✓,✓,✓,✓,-,-,-,-,-,-,OpaqueBox,BoxConnector,-,-,DoubleSpline_Vertical_12m,6,26,3,4,156,Easy
+26_Q1SCOCARD_Level_006,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,-,-,-,Spline_ShortTick,3,30,4,5,180,Medium
+HitFunnel_V2_Level 294,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,TileWall,-,-,Spline_BigU,4,30,4,5,220,Hard
+HitFunnel_V2_Level 295,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_6,4,30,4,5,180,Easy
+HitFunnel_V2_Level 296,-,✓,✓,✓,-,✓,✓,-,-,-,TileChain,HiddenTileGroups,-,-,Spline_Square,4,35,3,5,210,Medium
+25_Q4S4_Level_006,✓,✓,-,✓,✓,✓,✓,-,-,✓,BlockerTiles,TileWall,-,-,Spline_Hook,5,36,4,7,262,Hard
+HitFunnel_V2_Level 298,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,DoubleSpline_DoubleC,6,30,3,6,180,Medium
+HitFunnel_V2_Level 299,✓,✓,✓,✓,✓,-,-,-,-,✓,BlockerTiles,LockedDepositPoints,-,-,Spline_Curve,4,35,4,6,218,Medium
+26_Q1SIBOX_Level_014,✓,✓,✓,✓,✓,-,-,-,-,-,IceBox,BoxConnector,-,-,Spline_C_Reverse,3,30,4,5,180,VeryHard
+HitFunnel_V2_Level 301,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_L5,4,25,4,5,150,Easy
+HitFunnel_V2_Level 302,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,TileChain,-,-,Spline_S,3,30,4,6,180,Easy
+HitFunnel_V2_Level 303,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,DoubleSpline_Hakan,4,36,4,6,216,Medium
+HitFunnel_V2_Level 304,✓,✓,✓,✓,✓,✓,-,-,-,-,BoxConnector,LockedDepositPoints,-,-,Spline_S_2,5,48,4,6,288,Hard
+26_Q1SCLDP_Level_005,✓,✓,✓,✓,-,-,-,-,-,-,ColoredLockedDepositPoints,-,-,-,H02_Spline_2,5,24,3,4,144,Easy
+HitFunnel_V2_Level 306,✓,✓,✓,✓,-,-,-,-,-,-,CardPacks,IceQueue,-,-,Spline_Hook,5,24,4,4,144,Medium
+HitFunnel_V2_Level 307,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,TileWall,-,-,Spline_Tick,5,45,3,6,288,Hard
+26_Q1SOBOX_Level_008,✓,✓,✓,✓,✓,-,-,-,-,-,OpaqueBox,-,-,-,Spline_UpdateBatch_7,3,30,3,5,180,Medium
+HitFunnel_V2_Level 309,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_UpdateBatch_4,5,48,3,6,288,Medium
+HitFunnel_V2_Level 310,-,✓,✓,✓,✓,✓,-,-,-,-,HiddenTileGroups,DeckLocks,-,-,Spline_BigU,3,30,4,5,180,VeryHard
+HitFunnel_V2_Level 311,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,30,4,5,180,Easy
+26_Q1SCOCARD_Level_011,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_Curve,5,24,3,4,144,Easy
+HitFunnel_V2_Level 313,✓,✓,✓,✓,✓,-,-,-,-,-,LockAndKey,TileChain,-,-,H02_Spline_4,6,30,3,5,180,Medium
+HitFunnel_V2_Level 314,✓,-,✓,✓,✓,-,✓,-,-,-,CardPacks,BoxConnector,-,-,Spline_UpdateBatch_1.5,4,32,4,5,192,Hard
+HitFunnel_V2_Level 315,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_S_2,4,26,3,5,156,Easy
+26_Q1SIBOX_Level_013,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,IceBox,-,-,Spline_Triangle,3,30,3,6,180,Medium
+HitFunnel_V2_Level 317,✓,✓,-,✓,✓,✓,✓,-,-,✓,BlockerTiles,TileWall,-,-,Spline_Hook,5,36,4,7,262,Hard
+HitFunnel_V2_Level 318,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,DeckLocks,-,-,DoubleSpline_T,5,36,4,6,216,Medium
+HitFunnel_V2_Level 319,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_Vertical_12m,6,42,4,7,252,Medium
+HitFunnel_V2_Level 320,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,TileChain,-,-,Spline_UpdateBatch_2,5,24,3,6,144,VeryHard
+HitFunnel_V2_Level 321,✓,✓,✓,✓,-,-,-,-,-,-,HiddenTileGroups,LockedDepositPoints,-,-,DoubleSpline_Hakan,5,25,4,4,150,Easy
+26_Q1SCOCARD_Level_012,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,-,-,-,Spline_UpdateBatch_2,4,30,4,5,180,Easy
+HitFunnel_V2_Level 323,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,DeckLocks,-,-,DoubleSpline_T,6,26,3,6,156,Medium
+HitFunnel_V2_Level 324,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,BoxConnector,-,-,Spline_UpdateBatch_4,4,36,4,6,216,Hard
+HitFunnel_V2_Level 325,-,-,-,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,24,4,4,144,Easy
+HitFunnel_V2_Level 326,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,CardPacks,-,-,Spline_L_VerticalTop_RightToLeft,3,24,4,6,144,Medium
+HitFunnel_V2_Level 327,✓,✓,✓,✓,✓,-,-,-,-,-,IceQueue,-,-,-,H02_Spline_7,4,30,4,5,180,Hard
+26_Q1SOBOX_Level_006,✓,✓,✓,✓,✓,✓,-,-,-,-,OpaqueBox,-,-,-,DoubleSpline_T,5,30,3,6,180,Medium
+HitFunnel_V2_Level 329,-,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,30,4,6,180,Medium
+26_Q1SCLDP_Level_007,✓,✓,✓,✓,✓,-,✓,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_BigU,5,30,4,6,180,VeryHard
+26_Q1SIBOX_Level_015,✓,✓,✓,✓,✓,-,-,-,-,-,IceBox,HiddenTiles,-,-,Spline_UpdateBatch_5,6,25,4,5,150,Easy
+HitFunnel_V2_Level 332,✓,✓,✓,✓,✓,-,-,-,-,✓,BlockerTiles,TileChain,-,-,Spline_Tight,5,28,3,6,174,Easy
+26_Q1SOBOX_Level_009,✓,✓,✓,✓,✓,-,-,-,-,-,OpaqueBox,LockedDepositPoints,-,-,Spline_BigJ,5,30,4,5,180,Medium
+HitFunnel_V2_Level 334,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,DeckLocks,-,-,H02_Spline_2,5,30,3,5,180,Hard
+HitFunnel_V2_Level 335,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_4,4,32,4,4,192,Easy
+HitFunnel_V2_Level 336,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTileGroups,LockedDepositPoints,-,-,Spline_Horizontal_11m,4,33,4,7,198,Medium
+26_Q1SIBOX_Level_006,✓,✓,✓,✓,✓,-,-,-,-,-,IceBox,IceQueue,-,-,Spline_UpdateBatch_1.5,6,30,4,5,180,Hard
+HitFunnel_V2_Level 338,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,Teleport,-,-,Spline_Hook,4,30,3,6,252,Medium
+HitFunnel_V2_Level 339,✓,✓,✓,✓,-,-,✓,-,-,-,-,-,-,-,Spline_Tick,3,30,4,5,180,Medium
+HitFunnel_V2_Level 340,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_Horizontal_12m,8,36,4,6,216,VeryHard
+HitFunnel_V2_Level 341,✓,✓,✓,✓,-,-,-,-,-,-,CardPacks,DeckLocks,-,-,DoubleSpline_T,5,32,3,4,192,Easy
+HitFunnel_V2_Level 342,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_UpdateBatch_7,4,26,3,6,156,Easy
+26_Q1SIBOX_Level_018,✓,✓,✓,✓,✓,✓,-,-,-,-,IceBox,-,-,-,Spline_L_VerticalTop_RightToLeft,3,30,3,6,180,Medium
+HitFunnel_V2_Level 344,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceQueue,-,-,-,Spline_L_VerticalTop_LeftToRight,3,28,3,7,168,Hard
+HitFunnel_V2_Level 345,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,26,4,4,156,Easy
+26_Q1SCLDP_Level_008,✓,✓,✓,✓,✓,-,✓,-,-,-,ColoredLockedDepositPoints,-,-,-,H02_Spline_5,4,30,3,6,180,Medium
+HitFunnel_V2_Level 347,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,HiddenBoxes,-,-,Spline_S_Reverse,3,36,4,6,216,Hard
+26_Q1SCOCARD_Level_019,✓,✓,✓,✓,-,-,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_UpdateBatch_1.5,6,30,4,5,180,Medium
+HitFunnel_V2_Level 349,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenTiles,TileChain,-,-,Spline_BigU,5,30,4,6,180,Medium
+26_Q1SIBOX_Level_020,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,HiddenBoxes,IceBox,-,Spline_UpdateBatch_6,5,36,4,6,216,VeryHard
+HitFunnel_V2_Level 351,✓,✓,✓,✓,-,-,-,-,-,-,CardPacks,DeckLocks,-,-,Spline_BigJ,4,24,3,4,144,Easy
+HitFunnel_V2_Level 352,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_ShortTick,4,26,4,5,156,Easy
+26_Q1SCOCARD_Level_009,-,✓,-,✓,✓,✓,✓,-,-,-,DeckLocks,-,-,-,DoubleSpline_Vertical_12m,6,30,3,5,180,Medium
+HitFunnel_V2_Level 354,✓,✓,✓,✓,✓,✓,✓,-,-,-,LockAndKey,LockedDepositPoints,-,-,Spline_Horizontal_11m,4,42,4,7,252,Hard
+HitFunnel_V2_Level 355,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_S,5,30,3,6,180,Easy
+HitFunnel_V2_Level 356,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_Horizontal_11m,3,35,4,7,210,Medium
+HitFunnel_V2_Level 357,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,DeckLocks,-,-,DoubleSpline_DoubleC,4,40,4,5,240,Hard
+26_Q1SOBOX_Level_019,✓,✓,✓,-,-,-,-,-,-,-,OpaqueBox,-,-,-,Spline_S_Reverse,3,30,4,3,180,Medium
+HitFunnel_V2_Level 359,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,H02_Spline_2,3,25,4,5,150,Medium
+HitFunnel_V2_Level 360,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_L_VerticalTop_RightToLeft,4,28,4,6,168,VeryHard
+HitFunnel_V2_Level 361,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_Triangle,3,27,4,4,162,Easy
+26_Q1SCLDP_Level_012,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTiles,ColoredLockedDepositPoints,-,-,DoubleSpline_S,6,30,4,5,180,Easy
+26_Q1SCLDP_Level_013,✓,✓,-,✓,✓,-,✓,-,-,-,HiddenBoxes,ColoredLockedDepositPoints,-,-,DoubleSpline_T,6,25,4,5,150,Medium
+26_Q1SIBOX_Level_007,✓,✓,✓,✓,✓,-,✓,-,-,-,IceBox,IceQueue,TileChain,-,Spline_BigJ,4,30,4,6,180,Hard
+HitFunnel_V2_Level 365,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_7,4,25,3,5,150,Easy
+HitFunnel_V2_Level 366,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,H02_Spline_3,4,36,4,6,216,Medium
+HitFunnel_V2_Level 367,✓,✓,✓,✓,✓,✓,✓,-,-,✓,BlockerTiles,LockedDepositPoints,-,-,DoubleSpline_T,5,35,4,8,216,Hard
+HitFunnel_V2_Level 368,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,36,4,6,216,Medium
+26_Q1SCOCARD_Level_013,✓,✓,✓,✓,✓,✓,-,-,-,-,Teleport,-,-,-,Spline_UpdateBatch_4,5,30,4,6,205,Medium
+HitFunnel_V2_Level 370,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_C_Reverse,3,25,3,5,150,VeryHard
+HitFunnel_V2_Level 371,✓,✓,✓,✓,-,-,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,H02_Spline_5,4,24,4,4,144,Easy
+HitFunnel_V2_Level 372,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,H02_Spline_2,3,32,3,4,192,Easy
+HitFunnel_V2_Level 373,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,DoubleSpline_T,5,30,4,6,180,Medium
+26_Q1SIBOX_Level_017,✓,✓,✓,✓,✓,✓,-,-,-,-,IceBox,-,-,-,H02_Spline_3,5,30,3,6,180,Hard
+HitFunnel_V2_Level 375,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,H02_Spline_7,3,35,4,7,210,Easy
+HitFunnel_V2_Level 376,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceQueue,-,-,-,Spline_UpdateBatch_5,8,42,4,7,252,Medium
+26_Q1SCOCARD_Level_017,✓,✓,✓,✓,✓,✓,-,-,-,-,IceBox,-,-,-,Spline_Tick,4,31,3,6,186,Hard
+HitFunnel_V2_Level 378,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,H02_Spline_2,4,30,4,5,180,Medium
+HitFunnel_V2_Level 379,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,H02_Spline_3,4,30,4,5,180,Medium
+HitFunnel_V2_Level 380,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,Spline_Tight,5,30,4,6,240,VeryHard
+HitFunnel_V2_Level 381,✓,✓,✓,✓,✓,-,-,-,-,✓,CardPacks,BlockerTiles,-,-,Spline_BigJ,4,35,4,6,218,Easy
+HitFunnel_V2_Level 382,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_Square,4,36,4,6,216,Easy
+26_Q1SCLDP_Level_016,✓,✓,✓,✓,✓,✓,-,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_Square,4,36,4,6,216,Medium
+HitFunnel_V2_Level 384,-,-,✓,✓,✓,✓,✓,-,-,-,LockAndKey,TileChain,-,-,H02_Spline_4,3,30,4,5,180,Hard
+HitFunnel_V2_Level 385,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,DoubleSpline_T,5,35,4,7,210,Easy
+HitFunnel_V2_Level 386,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,Spline_S_Reverse,2,18,4,6,132,Medium
+HitFunnel_V2_Level 387,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,TileChain,-,-,Spline_UpdateBatch_7,5,35,4,7,210,Hard
+HitFunnel_V2_Level 388,-,✓,✓,✓,-,✓,✓,-,-,-,-,-,-,-,Spline_Triangle,3,30,3,5,180,Medium
+HitFunnel_V2_Level 389,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,Spline_L_VerticalTop_LeftToRight,3,35,4,7,210,Medium
+26_Q1SOBOX_Level_010,✓,✓,-,✓,✓,✓,✓,-,-,✓,OpaqueBox,BlockerTiles,HiddenTiles,-,DoubleSpline_Horizontal_12m,4,36,3,7,228,VeryHard
+HitFunnel_V2_Level 391,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_S_Reverse,3,20,4,5,120,Easy
+HitFunnel_V2_Level 392,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileWall,-,-,-,Spline_UpdateBatch_5,4,14,4,7,114,Easy
+26_Q1SIBOX_Level_008,✓,✓,✓,-,✓,✓,✓,-,-,-,IceBox,LockedDepositPoints,DeckLocks,-,Spline_UpdateBatch_5,6,30,4,6,180,Medium
+HitFunnel_V2_Level 394,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,TileChain,-,-,Spline_C_Reverse,4,35,4,6,210,Hard
+HitFunnel_V2_Level 395,✓,✓,✓,✓,✓,-,-,-,-,✓,BlockerTiles,HiddenTileGroups,-,-,Spline_S_Reverse,3,25,3,6,155,Easy
+HitFunnel_V2_Level 396,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,H02_Spline_3,5,36,4,6,216,Medium
+HitFunnel_V2_Level 397,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,H02_Spline_4,5,42,4,7,252,Hard
+HitFunnel_V2_Level 398,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,Spline_Square,4,16,4,6,126,Medium
+HitFunnel_V2_Level 399,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,-,-,-,Spline_Tick,4,30,4,5,180,Medium
+HitFunnel_V2_Level 400,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileWall,-,-,-,DoubleSpline_Horizontal_12m,7,36,3,7,234,VeryHard
+26_Q1SCOCARD_Level_015,✓,✓,✓,✓,-,✓,-,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_UpdateBatch_7,4,25,4,5,150,Easy
+HitFunnel_V2_Level 402,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceQueue,-,-,-,Spline_L_VerticalTop_LeftToRight,4,28,3,7,168,Easy
+26_Q1SOBOX_Level_013,✓,✓,✓,✓,✓,✓,-,-,-,-,OpaqueBox,LockedDepositPoints,-,-,DoubleSpline_T,5,30,4,6,180,Medium
+HitFunnel_V2_Level 404,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,TileChain,-,-,Spline_UpdateBatch_1.5,6,36,4,6,216,Hard
+HitFunnel_V2_Level 405,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_Hook,3,25,4,5,150,Easy
+HitFunnel_V2_Level 406,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,-,-,-,Spline_UpdateBatch_5,4,30,4,5,180,Medium
+26_Q1SCLDP_Level_014,✓,✓,✓,✓,✓,✓,-,-,-,-,ColoredLockedDepositPoints,-,-,-,DoubleSpline_Vertical_12m,6,30,3,6,180,Hard
+HitFunnel_V2_Level 408,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,Spline_S_Reverse,4,30,3,5,185,Medium
+HitFunnel_V2_Level 409,✓,✓,✓,✓,✓,-,-,-,-,-,BoxConnector,-,-,-,Spline_Tick,5,30,4,5,180,Medium
+HitFunnel_V2_Level 410,✓,✓,✓,✓,✓,✓,✓,-,-,-,BoxConnector,-,-,-,Spline_Curve,5,42,4,7,252,VeryHard
+26_Q1SIBOX_Level_011,✓,✓,✓,✓,✓,-,-,-,-,-,IceBox,-,-,-,Spline_UpdateBatch_5,3,25,3,5,150,Easy
+HitFunnel_V2_Level 412,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,H02_Spline_1,4,30,4,5,180,Easy
+HitFunnel_V2_Level 413,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileWall,-,-,-,Spline_S_4,4,32,3,7,210,Medium
+26_Q1SCOCARD_Level_014,✓,✓,✓,✓,✓,✓,-,-,-,✓,BlockerTiles,-,-,-,Spline_Square,3,30,3,7,190,Hard
+HitFunnel_V2_Level 415,✓,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,H02_Spline_5,4,35,3,7,210,Easy
+26_Q1SCLDP_Level_018,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,ColoredLockedDepositPoints,-,-,Spline_S_2,4,31,3,5,186,Medium
+HitFunnel_V2_Level 417,✓,✓,✓,✓,✓,✓,-,-,-,✓,LockAndKey,BlockerTiles,-,-,Spline_Horizontal_11m,3,36,4,7,220,Hard
+HitFunnel_V2_Level 418,✓,✓,✓,✓,✓,✓,✓,-,-,-,BoxConnector,-,-,-,Spline_BigJ,4,28,4,7,168,Medium
+HitFunnel_V2_Level 419,-,✓,✓,✓,✓,✓,✓,-,-,-,TileWall,-,-,-,DoubleSpline_Horizontal_12m,4,31,4,6,210,Medium
+HitFunnel_V2_Level 420,✓,✓,✓,✓,✓,-,-,-,-,-,DeckLocks,-,-,-,Spline_L_VerticalTop_LeftToRight,6,51,4,5,306,VeryHard
+HitFunnel_V2_Level 421,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_ShortTick,3,30,4,5,180,Easy
+HitFunnel_V2_Level 422,✓,✓,✓,✓,✓,-,-,-,-,-,IceQueue,-,-,-,H02_Spline_2,3,30,4,5,180,Easy
+HitFunnel_V2_Level 423,✓,✓,✓,✓,✓,✓,-,-,-,-,BoxConnector,-,-,-,Spline_UpdateBatch_7,4,36,4,6,216,Medium
+HitFunnel_V2_Level 424,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_L5,6,40,4,5,240,Hard
+HitFunnel_V2_Level 425,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,DoubleSpline_S,4,24,3,4,144,Easy
+HitFunnel_V2_Level 426,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileChain,-,-,-,Spline_Tick,5,42,4,7,252,Medium
+26_Q1SCLDP_Level_017,✓,✓,✓,✓,✓,✓,✓,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_L_VerticalTop_LeftToRight,6,42,4,7,252,Hard
+26_Q1SCOCARD_Level_016,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_UpdateBatch_6,6,36,4,6,216,Medium
+26_Q1SIBOX_Level_009,✓,✓,✓,✓,✓,✓,✓,-,-,-,IceBox,CardPacks,-,-,DoubleSpline_L5,6,29,3,7,174,Medium
+HitFunnel_V2_Level 430,✓,✓,✓,-,-,-,✓,-,-,✓,BlockerTiles,Teleport,-,-,Spline_Triangle,2,18,3,5,136,VeryHard
+HitFunnel_V2_Level 431,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_BigJ,4,36,4,6,216,Easy
+HitFunnel_V2_Level 432,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_BigU,3,35,4,5,210,Easy
+HitFunnel_V2_Level 433,✓,✓,✓,✓,✓,✓,✓,-,-,-,BoxConnector,-,-,-,DoubleSpline_Horizontal_12m,6,28,4,7,168,Medium
+HitFunnel_V2_Level 434,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,H02_Spline_1,4,42,4,7,252,Hard
+HitFunnel_V2_Level 435,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,H02_Spline_5,4,30,4,6,180,Easy
+HitFunnel_V2_Level 436,✓,✓,✓,✓,✓,✓,✓,-,-,-,DeckLocks,-,-,-,Spline_UpdateBatch_1.5,8,35,4,7,210,Medium
+HitFunnel_V2_Level 437,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_Square,4,24,3,6,144,Hard
+26_Q1SOBOX_Level_016,✓,✓,✓,✓,-,✓,✓,-,-,-,OpaqueBox,-,-,-,Spline_Curve,5,30,4,6,180,Medium
+26_Q1SCOCARD_Level_018,✓,✓,✓,✓,-,✓,✓,-,-,-,CardPacks,-,-,-,Spline_BigJ,5,30,4,6,180,Medium
+HitFunnel_V2_Level 440,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,-,-,-,DoubleSpline_Vertical_12m,8,41,3,7,246,VeryHard
+26_Q1SCLDP_Level_015,✓,✓,✓,✓,-,-,-,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_UpdateBatch_6,5,28,4,4,168,Easy
+26_Q1SOBOX_Level_012,✓,✓,✓,✓,✓,✓,✓,-,-,-,OpaqueBox,-,-,-,Spline_UpdateBatch_5,8,42,3,7,252,Easy
+HitFunnel_V2_Level 443,✓,✓,✓,✓,✓,-,-,-,-,-,DeckLocks,-,-,-,Spline_L_VerticalTop_LeftToRight,4,25,4,5,150,Medium
+26_Q1SCLDP_Level_010,✓,✓,✓,✓,✓,✓,✓,-,-,-,ColoredLockedDepositPoints,DeckLocks,-,-,Spline_BigJ,5,28,4,7,168,Hard
+HitFunnel_V2_Level 445,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_6,5,24,3,4,144,Easy
+HitFunnel_V2_Level 446,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,-,-,-,Spline_UpdateBatch_7,5,30,3,6,180,Medium
+HitFunnel_V2_Level 447,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_UpdateBatch_3,4,42,4,7,252,Hard
+HitFunnel_V2_Level 448,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileWall,-,-,-,Spline_UpdateBatch_3,3,28,4,7,237,Medium
+HitFunnel_V2_Level 449,✓,✓,✓,✓,✓,-,-,-,-,-,LockedDepositPoints,-,-,-,Spline_L_VerticalTop_RightToLeft,3,15,4,5,90,Medium
+26_Q1SCOCARD_Level_020,✓,✓,✓,✓,✓,✓,✓,-,-,-,LockAndKey,-,-,-,Spline_UpdateBatch_5,6,35,4,7,210,VeryHard
+HitFunnel_V2_Level 451,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,3,30,4,5,180,Easy
+HitFunnel_V2_Level 452,-,✓,-,✓,✓,✓,✓,-,-,-,-,-,-,-,H02_Spline_2,2,20,3,5,120,Easy
+HitFunnel_V2_Level 453,✓,✓,✓,✓,✓,-,-,-,-,-,IceQueue,Teleport,-,-,Spline_BigJ,4,30,4,5,222,Medium
+HitFunnel_V2_Level 454,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,Spline_Tick,4,26,3,5,156,Hard
+HitFunnel_V2_Level 455,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_ShortTick,2,22,3,4,132,Easy
+26_Q1SCLDP_Level_009,✓,✓,-,✓,✓,-,✓,-,-,-,ColoredLockedDepositPoints,-,-,-,DoubleSpline_Vertical_12m,6,25,3,5,150,Medium
+HitFunnel_V2_Level 457,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_Vertical_12m,4,28,4,7,168,Hard
+HitFunnel_V2_Level 458,-,-,✓,✓,✓,✓,✓,-,-,-,LockAndKey,-,-,-,DoubleSpline_Vertical_12m,6,40,4,5,240,Medium
+HitFunnel_V2_Level 459,✓,✓,✓,✓,✓,✓,-,-,-,-,TileWall,-,-,-,Spline_BigU,5,30,4,6,212,Medium
+HitFunnel_V2_Level 460,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenTiles,-,-,-,Spline_S_Reverse,3,28,4,7,168,VeryHard
+HitFunnel_V2_Level 461,✓,-,-,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_6,3,24,3,3,144,Easy
+HitFunnel_V2_Level 462,-,✓,✓,-,-,✓,✓,-,-,-,-,-,-,-,Spline_UpdateBatch_1,3,36,3,4,216,Easy
+HitFunnel_V2_Level 463,✓,✓,✓,✓,✓,✓,✓,-,-,-,LockedDepositPoints,-,-,-,DoubleSpline_L5,5,35,4,7,210,Medium
+HitFunnel_V2_Level 464,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,DoubleSpline_L5,6,36,3,6,216,Hard
+HitFunnel_V2_Level 465,-,-,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,3,32,4,4,192,Easy
+HitFunnel_V2_Level 466,-,✓,✓,✓,✓,✓,-,-,-,-,BoxConnector,-,-,-,Spline_UpdateBatch_1.5,6,35,4,5,210,Medium
+HitFunnel_V2_Level 467,✓,✓,✓,✓,✓,-,-,-,-,✓,HiddenBoxes,BlockerTiles,-,-,Spline_S_2,4,30,3,6,186,Hard
+26_Q1SOBOX_Level_018,✓,✓,✓,✓,✓,-,-,-,-,-,OpaqueBox,-,-,-,Spline_Tick,4,30,4,5,180,Medium
+HitFunnel_V2_Level 469,-,-,✓,✓,✓,✓,✓,-,-,-,LockAndKey,-,-,-,DoubleSpline_S,6,40,4,5,240,Medium
+HitFunnel_V2_Level 470,✓,✓,✓,✓,✓,✓,-,-,-,-,IceQueue,DeckLocks,-,-,Spline_UpdateBatch_1.5,6,36,4,6,216,VeryHard
+HitFunnel_V2_Level 471,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_Hook,3,25,3,5,150,Easy
+HitFunnel_V2_Level 472,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,DoubleSpline_Hakan,4,20,4,5,120,Easy
+HitFunnel_V2_Level 473,✓,✓,✓,✓,✓,-,-,-,-,-,TileWall,-,-,-,Spline_Hook,3,25,3,5,162,Medium
+HitFunnel_V2_Level 474,✓,✓,✓,✓,✓,-,-,-,-,-,TileChain,HiddenTiles,-,-,H02_Spline_3,5,30,4,5,180,Hard
+HitFunnel_V2_Level 475,✓,✓,✓,✓,-,-,-,-,-,✓,CardPacks,BlockerTiles,-,-,DoubleSpline_DoubleC,4,25,3,5,156,Easy
+HitFunnel_V2_Level 476,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileWall,-,-,-,Spline_S_2,5,30,3,7,212,Medium
+HitFunnel_V2_Level 477,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_BigU,4,36,4,6,216,Hard
+26_Q1SCLDP_Level_006,✓,✓,✓,✓,-,✓,✓,-,-,-,ColoredLockedDepositPoints,-,-,-,Spline_Curve,4,30,4,6,180,Medium
+HitFunnel_V2_Level 479,✓,✓,✓,✓,✓,✓,-,-,-,-,DeckLocks,-,-,-,DoubleSpline_T,5,36,3,6,216,Medium
+HitFunnel_V2_Level 480,✓,✓,✓,✓,✓,✓,✓,-,-,-,HiddenBoxes,HiddenTiles,DeckLocks,-,DoubleSpline_Vertical_12m,5,28,4,7,168,VeryHard
+26_Q1SOBOX_Level_005,✓,✓,✓,✓,-,-,-,-,-,-,OpaqueBox,IceQueue,-,-,Spline_BigJ,3,31,4,4,186,Easy
+HitFunnel_V2_Level 252,✓,✓,✓,✓,✓,✓,-,-,-,✓,LockAndKey,BlockerTiles,-,-,Spline_S_4,4,24,4,7,148,Easy
+HitFunnel_V2_Level 253,✓,✓,✓,✓,✓,✓,✓,-,-,-,BoxConnector,LockedDepositPoints,-,-,Spline_UpdateBatch_3,6,42,4,7,252,Medium
+HitFunnel_V2_Level 277,✓,-,✓,-,✓,-,✓,-,-,-,BoxConnector,DeckLocks,-,-,Spline_UpdateBatch_1.5,4,32,4,4,192,Hard
+HitFunnel_V2_Level 265,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,H02_Spline_5,4,30,3,5,180,Easy
+HitFunnel_V2_Level 293,✓,✓,✓,✓,✓,✓,-,-,-,-,LockAndKey,DeckLocks,-,-,Spline_UpdateBatch_1.5,5,35,4,6,210,Medium
+HitFunnel_V2_Level 257,✓,✓,✓,✓,✓,✓,-,-,-,-,BoxConnector,TileWall,-,-,Spline_Tick,5,45,3,6,288,Hard
+26_Q1SCLDP_Level_019,✓,✓,✓,✓,✓,✓,-,-,-,-,ColoredLockedDepositPoints,Teleport,-,-,Spline_UpdateBatch_4,5,30,3,6,200,Medium
+HitFunnel_V2_Level 353,✓,✓,✓,✓,✓,-,-,-,-,✓,TileChain,BlockerTiles,-,-,Spline_L_LeftToRight,3,30,3,6,186,Medium
+HitFunnel_V2_Level 260,✓,✓,✓,✓,✓,✓,-,-,-,-,CardPacks,TileWall,-,-,DoubleSpline_Horizontal_12m,7,36,3,6,228,VeryHard
+HitFunnel_V2_Level 312,✓,✓,✓,✓,✓,✓,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_DoubleC,5,30,3,6,180,Easy
+HitFunnel_V2_Level 322,✓,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,Spline_Curve,4,25,3,6,150,Easy
+HitFunnel_V2_Level 369,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,3,30,4,5,180,Medium
+HitFunnel_V2_Level 414,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenBoxes,HiddenTiles,-,-,DoubleSpline_Vertical_12m,6,40,4,5,240,Hard
+HitFunnel_V2_Level 401,✓,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,Spline_UpdateBatch_1.5,4,30,4,5,180,Easy
+HitFunnel_V2_Level 428,✓,✓,✓,✓,✓,✓,-,-,-,-,DeckLocks,-,-,-,Spline_ShortTick,4,24,4,6,144,Medium
+HitFunnel_V2_Level 377,✓,✓,✓,✓,✓,-,-,-,-,-,HiddenTileGroups,LockedDepositPoints,-,-,H02_Spline_2,5,40,3,5,240,Hard
+HitFunnel_V2_Level 439,✓,✓,✓,✓,✓,✓,-,-,-,-,BoxConnector,-,-,-,Spline_UpdateBatch_6,6,36,4,6,216,Medium
+HitFunnel_V2_Level 348,✓,✓,✓,✓,-,-,-,-,-,-,-,-,-,-,Spline_L_LeftToRight,3,26,4,4,156,Medium
+HitFunnel_V2_Level 450,✓,✓,✓,✓,✓,✓,✓,-,-,-,TileChain,-,-,-,Spline_BigJ,5,28,3,7,168,VeryHard
