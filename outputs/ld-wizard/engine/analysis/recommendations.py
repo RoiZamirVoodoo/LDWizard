@@ -427,23 +427,19 @@ def _recommend_difficulty_curve(df, aps_results, funnel_results):
                f"over {n} levels (avg {avg_ramp_per_level:.4f} APS/level). "
                f"{len(actionable)} zone(s) deviate significantly from ideal.")
 
-    # Sampled curve data for chart (every Nth level to keep payload small)
-    sample_step = max(1, n // 80)  # ~80 points max
+    # Curve data for chart — 5-level moving average of APS so difficulty
+    # spikes and patterns are visible without per-level noise.
+    MA_WINDOW = 5
+    aps_series = pd.Series(aps_vals)
+    aps_ma = aps_series.rolling(window=MA_WINDOW, center=True, min_periods=1).mean()
+
     curve_points = []
-    for idx in range(0, n, sample_step):
+    for idx in range(n):
         curve_points.append({
             "level": int(levels[idx]),
-            "actual_aps": round(float(aps_vals[idx]), 3),
+            "actual_aps": round(float(aps_ma.iloc[idx]), 3),
             "ideal_aps": round(float(ideal_aps_at(idx)), 3),
             "bracket": str(df["target_bracket"].iloc[idx]) if "target_bracket" in df.columns else None,
-        })
-    # Always include last point
-    if curve_points and curve_points[-1]["level"] != int(levels[-1]):
-        curve_points.append({
-            "level": int(levels[-1]),
-            "actual_aps": round(float(aps_vals[-1]), 3),
-            "ideal_aps": round(float(ideal_aps_at(n - 1)), 3),
-            "bracket": str(df["target_bracket"].iloc[-1]) if "target_bracket" in df.columns else None,
         })
 
     return {

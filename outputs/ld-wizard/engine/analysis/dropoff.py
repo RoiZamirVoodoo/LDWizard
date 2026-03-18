@@ -18,7 +18,7 @@ from engine.parser import DIFFICULTY_ORDER, FUNNEL_PHASES
 # ---------------------------------------------------------------------------
 
 # Rolling window for smoothing and spike detection
-ROLLING_WINDOW = 15
+ROLLING_WINDOW = 5
 
 # Spike thresholds — now based on phase-adjusted deviation
 # A spike is flagged when the adjusted deviation exceeds these multiples

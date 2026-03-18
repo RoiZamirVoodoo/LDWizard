@@ -1141,15 +1141,15 @@ function renderDifficultyProgressionFixes(data) {
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Actual APS',
+                        label: 'APS (5-level avg)',
                         data: actualData,
                         borderColor: '#8B5CF6',
                         backgroundColor: 'rgba(139,92,246,0.1)',
-                        borderWidth: 2,
+                        borderWidth: 1.5,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 3,
                         fill: false,
-                        tension: 0.3,
+                        tension: 0.1,
                     },
                     {
                         label: 'Ideal Curve',
@@ -1184,7 +1184,7 @@ function renderDifficultyProgressionFixes(data) {
                 scales: {
                     x: {
                         display: true,
-                        ticks: { maxTicksLimit: 15, font: { size: 9 }, maxRotation: 0 },
+                        ticks: { maxTicksLimit: 25, font: { size: 9 }, maxRotation: 0 },
                         grid: { color: '#F0EEEB' },
                     },
                     y: {
