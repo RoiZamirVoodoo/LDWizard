@@ -131,9 +131,9 @@ def _recommend_reordering(df, funnel_results):
                 "suggestion": f"Add a {DIFFICULTY_ORDER[min(curr_rank, prev_rank) + 1]} level between L{int(levels[i-1])} and L{int(levels[i])} to ease the transition.",
             })
 
-    # Limit to top 20 most impactful
+    # Limit to top 10 most impactful (keeps unified panel focused)
     recs.sort(key=lambda r: (0 if r["priority"] == "high" else 1, -abs(r.get("delta", 0))))
-    recs = recs[:20]
+    recs = recs[:10]
 
     summary = (f"Found {jump_count} difficulty spike(s) that exceed normal step size. "
                f"Average APS step: {mean_delta:.3f}, threshold: {spike_threshold:.3f}.")
@@ -202,7 +202,7 @@ def _recommend_smoothing(df, dropoff_results, funnel_results, tutorial_max_level
         return (phase_rank, sev_rank, -z["funnel_loss_pct"])
     zones_sorted = sorted(zones, key=zone_priority)
 
-    for zone in zones_sorted[:10]:
+    for zone in zones_sorted[:6]:
         zone_df = df[(df["level"] >= zone["start_level"]) & (df["level"] <= zone["end_level"])]
         if len(zone_df) == 0:
             continue
@@ -276,7 +276,7 @@ def _recommend_smoothing(df, dropoff_results, funnel_results, tutorial_max_level
         {"Late": 0, "Mid": 1, "Early": 2, "Tutorial": 3}.get(s.get("phase", "Mid"), 1),
         -s.get("sigma", s.get("ratio", 0))
     ))
-    for spike in isolated_spikes[:5]:
+    for spike in isolated_spikes[:3]:
         phase = spike.get("phase", "Mid")
         sigma_str = f"{spike.get('sigma', spike.get('ratio', 0))}σ" if "sigma" in spike else f"{spike.get('ratio', 0)}×"
         sev = "info" if phase == "Tutorial" else spike["severity"]
@@ -407,8 +407,9 @@ def _recommend_difficulty_curve(df, aps_results, funnel_results):
 
         zone_analysis.append(zone_entry)
 
-    # Filter to only actionable zones
-    actionable = [z for z in zone_analysis if z["priority"] != "none"]
+    # Filter to only high-priority actionable zones (keeps unified panel focused)
+    actionable = [z for z in zone_analysis if z["priority"] in ("high", "medium")]
+    actionable = actionable[:8]  # Cap at 8 curve zones
 
     # Bracket-level APS targets
     bracket_targets = []
@@ -757,20 +758,129 @@ def _compute_game_health(df, aps_results, funnel_results, ranking_results,
     details["pacing"] = f"Funnel pacing score: {pacing_score}/100"
 
     # --- 2. Retention Health ---
+    # Playtime-normalized retention: measures what % of players survive
+    # 1,000 minutes of accumulated playtime.
+    #
+    # Why this works:
+    #   - Per-level churn and per-level funnel % are progression metrics,
+    #     not time-based retention metrics. A game with short levels bleeds
+    #     more players per minute than one with long levels, even if both
+    #     have the same per-level churn.
+    #   - Normalizing by playtime accounts for level duration: a game where
+    #     each level takes 3 min and churns 10% loses players much faster
+    #     (per minute of engagement) than one where levels take 3 min and
+    #     churn 5%.
+    #   - This metric correlates with real day-over-day retention because
+    #     playtime is the best proxy for "time spent with the game" that
+    #     we can derive from level-based data.
+    #
+    # Fallback: if playtime data is unavailable, uses session churn + PLR.
+    PLAYTIME_TARGET = 1000  # minutes
+
     retention_score = 70  # default
-    if "funnel_pct" in df.columns and len(df) > 1:
-        end_retention = float(df["funnel_pct"].iloc[-1])
-        if end_retention >= 0.10:
-            retention_score = 90
-        elif end_retention >= 0.05:
-            retention_score = 75
-        elif end_retention >= 0.02:
-            retention_score = 55
-        elif end_retention >= 0.01:
-            retention_score = 35
-        else:
-            retention_score = 15
-        details["retention"] = f"End-of-funnel retention: {end_retention*100:.2f}% → score {retention_score}/100"
+    detail_parts = []
+
+    has_playtime = ("playtime" in df.columns and df["playtime"].notna().any()
+                    and float(df["playtime"].fillna(0).sum()) > 0)
+    has_funnel = "funnel_pct" in df.columns and len(df) > 1
+
+    if has_playtime and has_funnel:
+        # --- Playtime-normalized retention ---
+        playtime_vals = df["playtime"].fillna(0).values
+        funnel_vals = df["funnel_pct"].fillna(0).values
+        start_funnel = float(funnel_vals[0])
+
+        if start_funnel > 0:
+            cumulative_pt = np.cumsum(playtime_vals)
+            total_pt = float(cumulative_pt[-1])
+
+            # Find the level index where cumulative playtime hits the target
+            reached = np.where(cumulative_pt >= PLAYTIME_TARGET)[0]
+            if len(reached) > 0:
+                target_idx = int(reached[0])
+            else:
+                # Total playtime doesn't reach target — use last level
+                target_idx = len(df) - 1
+
+            target_funnel = float(funnel_vals[target_idx])
+            survival_at_target = target_funnel / start_funnel
+            target_level = int(df["level"].iloc[target_idx])
+            actual_minutes = float(cumulative_pt[target_idx])
+
+            # Score based on survival rate at 1000 minutes
+            # Calibrated from real game data:
+            #   >=75% survival = excellent, 65-75% = good, 55-65% = OK,
+            #   45-55% = below avg, 35-45% = poor, <35% = critical
+            if survival_at_target >= 0.75:
+                retention_score = 95
+            elif survival_at_target >= 0.65:
+                retention_score = 80
+            elif survival_at_target >= 0.55:
+                retention_score = 65
+            elif survival_at_target >= 0.45:
+                retention_score = 50
+            elif survival_at_target >= 0.35:
+                retention_score = 35
+            else:
+                retention_score = 20
+
+            reached_str = f"at L{target_level}" if total_pt >= PLAYTIME_TARGET else f"at L{target_level} (only {actual_minutes:.0f} min available)"
+            detail_parts.append(
+                f"Playtime retention: {survival_at_target*100:.1f}% survive "
+                f"{PLAYTIME_TARGET} min of play ({reached_str}) → {retention_score}/100"
+            )
+    else:
+        # --- Fallback: session churn + per-level retention ---
+        # Used when playtime column is not available
+        churn_sub = None
+        funnel_sub = None
+
+        if "churn" in df.columns and df["churn"].notna().any():
+            avg_session_churn = float(df["churn"].mean())
+            if avg_session_churn <= 0.03:
+                churn_sub = 95
+            elif avg_session_churn <= 0.05:
+                churn_sub = 85
+            elif avg_session_churn <= 0.06:
+                churn_sub = 75
+            elif avg_session_churn <= 0.08:
+                churn_sub = 60
+            elif avg_session_churn <= 0.10:
+                churn_sub = 45
+            elif avg_session_churn <= 0.12:
+                churn_sub = 30
+            else:
+                churn_sub = 15
+            detail_parts.append(f"Avg session churn: {avg_session_churn*100:.2f}% → {churn_sub}/100 (no playtime data)")
+
+        if has_funnel:
+            start_funnel = float(df["funnel_pct"].iloc[0])
+            end_funnel = float(df["funnel_pct"].iloc[-1])
+            if start_funnel > 0 and end_funnel > 0:
+                per_level_retention = (end_funnel / start_funnel) ** (1.0 / max(n - 1, 1))
+                if per_level_retention >= 0.999:
+                    funnel_sub = 95
+                elif per_level_retention >= 0.997:
+                    funnel_sub = 85
+                elif per_level_retention >= 0.995:
+                    funnel_sub = 75
+                elif per_level_retention >= 0.992:
+                    funnel_sub = 65
+                elif per_level_retention >= 0.988:
+                    funnel_sub = 50
+                elif per_level_retention >= 0.980:
+                    funnel_sub = 35
+                else:
+                    funnel_sub = 15
+
+        if churn_sub is not None and funnel_sub is not None:
+            retention_score = round(0.6 * churn_sub + 0.4 * funnel_sub)
+        elif churn_sub is not None:
+            retention_score = churn_sub
+        elif funnel_sub is not None:
+            retention_score = funnel_sub
+
+    details["retention"] = " | ".join(detail_parts) + f" → {retention_score}/100" if detail_parts else f"Default {retention_score}/100"
     scores["retention"] = retention_score
 
     # --- 3. Bracket Balance (includes distribution health) ---
