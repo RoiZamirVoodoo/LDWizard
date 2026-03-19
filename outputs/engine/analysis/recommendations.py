@@ -38,14 +38,26 @@ def compute_recommendations(df, aps_results, funnel_results, ranking_results,
                 tw += w
         df["_revenue_score"] = (num / tw) if tw > 0 else 0.0
 
+    # Determine Tutorial/onboarding cutoff level — levels at or below this
+    # are excluded from fix/replicate/smoothing recommendations since
+    # early churn is expected and not actionable.
+    tutorial_max_level = 0
+    if "_funnel_phase" in df.columns:
+        tutorial_df = df[df["_funnel_phase"] == "Tutorial"]
+        if len(tutorial_df) > 0:
+            tutorial_max_level = int(tutorial_df["level"].max())
+
     return {
         "reorder": _recommend_reordering(df, funnel_results),
-        "smoothing": _recommend_smoothing(df, dropoff_results, funnel_results),
+        "smoothing": _recommend_smoothing(df, dropoff_results, funnel_results, tutorial_max_level),
         "difficulty_curve": _recommend_difficulty_curve(df, aps_results, funnel_results),
-        "fix_replicate": _recommend_fix_replicate(df, ranking_results, dropoff_results),
+        "fix_replicate": _recommend_fix_replicate(df, ranking_results, dropoff_results, tutorial_max_level),
         "best_mechanics": _recommend_best_mechanics(df, ranking_results),
         "game_health": _compute_game_health(df, aps_results, funnel_results, ranking_results,
                                              dropoff_results, correlation_results),
+        "playtime_economics": _compute_playtime_economics(
+            df, onboarding_cutoff=max(ONBOARDING_LEVELS, tutorial_max_level)),
+        "tutorial_max_level": tutorial_max_level,
     }
 
 
@@ -121,9 +133,9 @@ def _recommend_reordering(df, funnel_results):
                 "suggestion": f"Add a {DIFFICULTY_ORDER[min(curr_rank, prev_rank) + 1]} level between L{int(levels[i-1])} and L{int(levels[i])} to ease the transition.",
             })
 
-    # Limit to top 20 most impactful
+    # Limit to top 10 most impactful (keeps unified panel focused)
     recs.sort(key=lambda r: (0 if r["priority"] == "high" else 1, -abs(r.get("delta", 0))))
-    recs = recs[:20]
+    recs = recs[:10]
 
     summary = (f"Found {jump_count} difficulty spike(s) that exceed normal step size. "
                f"Average APS step: {mean_delta:.3f}, threshold: {spike_threshold:.3f}.")
@@ -161,32 +173,45 @@ def _find_swap_candidate(df, jump_idx, delta):
 # 2. Drop-off Zone Smoothing
 # ---------------------------------------------------------------------------
 
-def _recommend_smoothing(df, dropoff_results, funnel_results):
+def _recommend_smoothing(df, dropoff_results, funnel_results, tutorial_max_level=0):
     """
     For each high-loss zone, recommend specific levels to ease
     or where to insert breather levels.
+    Excludes Tutorial/onboarding zones from recommendations.
     """
     recs = []
 
     if not dropoff_results:
         return {"recommendations": recs, "summary": "No drop-off data available."}
 
-    zones = dropoff_results.get("zones", [])
-    spikes = dropoff_results.get("spikes", [])
+    # Filter out zones that are entirely within the tutorial/onboarding range
+    all_zones = dropoff_results.get("zones", [])
+    zones = [z for z in all_zones if z["end_level"] > tutorial_max_level]
+    all_spikes = dropoff_results.get("spikes", [])
+    spikes = [s for s in all_spikes if s["level"] > tutorial_max_level]
 
     # Get bracket averages for context
     bracket_avg_churn = {}
     for bd in dropoff_results.get("bracket_dropoff", []):
         bracket_avg_churn[bd["bracket"]] = bd.get("avg_combined_churn", 0)
 
-    # Recommend for each critical/warning zone
-    for zone in zones[:10]:
+    # Recommend for each critical/warning zone — prioritize mid/late phases
+    # Sort zones: mid/late phases first, then by severity and loss
+    def zone_priority(z):
+        phase = z.get("phase", "Mid")
+        phase_rank = {"Late": 0, "Mid": 1, "Early": 2, "Tutorial": 3}.get(phase, 1)
+        sev_rank = 0 if z["severity"] == "critical" else 1
+        return (phase_rank, sev_rank, -z["funnel_loss_pct"])
+    zones_sorted = sorted(zones, key=zone_priority)
+
+    for zone in zones_sorted[:6]:
         zone_df = df[(df["level"] >= zone["start_level"]) & (df["level"] <= zone["end_level"])]
         if len(zone_df) == 0:
             continue
 
-        # Find the worst levels in this zone
-        worst_levels = zone_df.nlargest(3, "dropoff_rate") if "dropoff_rate" in zone_df.columns else zone_df.head(3)
+        # Find the worst levels in this zone using adjusted deviation if available
+        sort_col = "_dropoff_deviation_adj" if "_dropoff_deviation_adj" in zone_df.columns else "dropoff_rate"
+        worst_levels = zone_df.nlargest(3, sort_col) if sort_col in zone_df.columns else zone_df.head(3)
 
         level_details = []
         for _, row in worst_levels.iterrows():
@@ -212,20 +237,33 @@ def _recommend_smoothing(df, dropoff_results, funnel_results):
 
             level_details.append(detail)
 
+        phase = zone.get("phase", "Mid")
         rec = {
             "zone": f"L{zone['start_level']}–L{zone['end_level']}",
             "severity": zone["severity"],
             "funnel_loss": round(zone["funnel_loss_pct"] * 100, 1),
             "user_loss": zone["user_loss"],
             "dominant_bracket": zone.get("dominant_bracket", "—"),
+            "phase": phase,
             "worst_levels": level_details,
         }
 
-        # Zone-level suggestion
-        if zone.get("dominant_bracket") in ("Hard", "Super Hard", "Wall"):
-            rec["zone_action"] = f"This zone is dominated by {zone['dominant_bracket']} levels. Insert 1–2 Easy/Medium breather levels to let players recover."
+        # Phase-aware zone-level suggestion
+        if phase == "Tutorial":
+            rec["zone_action"] = (f"This zone is in the Tutorial phase — some drop-off is expected. "
+                                  f"Only act if drop-off is extreme relative to other Tutorial levels.")
+            rec["severity"] = "info"  # De-emphasize tutorial zones
+        elif phase == "Early":
+            if zone.get("dominant_bracket") in ("Hard", "Super Hard", "Wall"):
+                rec["zone_action"] = (f"Early-game zone dominated by {zone['dominant_bracket']} — too aggressive for new players. "
+                                      f"Ease difficulty or insert more Easy/Medium levels to retain uncommitted players.")
+            else:
+                rec["zone_action"] = f"Early-game drop-off zone. Consider improving onboarding flow or reducing difficulty ramp."
+        elif zone.get("dominant_bracket") in ("Hard", "Super Hard", "Wall"):
+            rec["zone_action"] = (f"This {phase.lower()}-game zone is dominated by {zone['dominant_bracket']} levels. "
+                                  f"Insert 1–2 Easy/Medium breather levels to let committed players recover.")
         else:
-            rec["zone_action"] = f"Reduce overall difficulty in this zone. Consider lowering APS targets by 10–20%."
+            rec["zone_action"] = f"Reduce overall difficulty in this {phase.lower()}-game zone. Consider lowering APS targets by 10–20%."
 
         recs.append(rec)
 
@@ -235,25 +273,37 @@ def _recommend_smoothing(df, dropoff_results, funnel_results):
         zone_levels.update(range(z["start_level"], z["end_level"] + 1))
 
     isolated_spikes = [s for s in spikes if s["level"] not in zone_levels and s["severity"] == "critical"]
-    for spike in isolated_spikes[:5]:
+    # Prioritize mid/late game isolated spikes
+    isolated_spikes.sort(key=lambda s: (
+        {"Late": 0, "Mid": 1, "Early": 2, "Tutorial": 3}.get(s.get("phase", "Mid"), 1),
+        -s.get("sigma", s.get("ratio", 0))
+    ))
+    for spike in isolated_spikes[:3]:
+        phase = spike.get("phase", "Mid")
+        sigma_str = f"{spike.get('sigma', spike.get('ratio', 0))}σ" if "sigma" in spike else f"{spike.get('ratio', 0)}×"
+        sev = "info" if phase == "Tutorial" else spike["severity"]
         recs.append({
             "zone": f"L{spike['level']} (isolated spike)",
-            "severity": "critical",
+            "severity": sev,
             "funnel_loss": None,
             "user_loss": spike.get("user_loss", 0),
             "dominant_bracket": spike.get("bracket", "—"),
+            "phase": phase,
             "worst_levels": [{
                 "level": spike["level"],
                 "bracket": spike.get("bracket", "—"),
                 "dropoff_rate": spike["dropoff_rate"],
                 "aps": spike.get("aps"),
                 "churn": spike.get("combined_churn"),
-                "action": f"Critical isolated spike at {spike['ratio']}× local average. Reduce difficulty or redesign this level.",
+                "action": f"Isolated spike at {sigma_str} above expected [{phase}]. Reduce difficulty or redesign.",
             }],
-            "zone_action": "This is an isolated spike — the single level causes abnormal player loss. Priority fix.",
+            "zone_action": (f"Isolated {phase.lower()}-game spike. "
+                           + ("Priority fix — committed players are leaving." if phase in ("Mid", "Late")
+                              else "Noted but lower priority (early-game churn is partially expected).")),
         })
 
-    summary = f"{len(zones)} high-loss zones detected. {len(isolated_spikes)} isolated critical spikes outside zones."
+    onboarding_note = f" Onboarding levels (L1–L{tutorial_max_level}) excluded." if tutorial_max_level > 0 else ""
+    summary = f"{len(zones)} high-loss zones detected. {len(isolated_spikes)} isolated critical spikes outside zones.{onboarding_note}"
     return {"recommendations": recs, "summary": summary}
 
 
@@ -359,8 +409,9 @@ def _recommend_difficulty_curve(df, aps_results, funnel_results):
 
         zone_analysis.append(zone_entry)
 
-    # Filter to only actionable zones
-    actionable = [z for z in zone_analysis if z["priority"] != "none"]
+    # Filter to only high-priority actionable zones (keeps unified panel focused)
+    actionable = [z for z in zone_analysis if z["priority"] in ("high", "medium")]
+    actionable = actionable[:8]  # Cap at 8 curve zones
 
     # Bracket-level APS targets
     bracket_targets = []
@@ -378,12 +429,28 @@ def _recommend_difficulty_curve(df, aps_results, funnel_results):
                f"over {n} levels (avg {avg_ramp_per_level:.4f} APS/level). "
                f"{len(actionable)} zone(s) deviate significantly from ideal.")
 
+    # Curve data for chart — 5-level moving average of APS so difficulty
+    # spikes and patterns are visible without per-level noise.
+    MA_WINDOW = 5
+    aps_series = pd.Series(aps_vals)
+    aps_ma = aps_series.rolling(window=MA_WINDOW, center=True, min_periods=1).mean()
+
+    curve_points = []
+    for idx in range(n):
+        curve_points.append({
+            "level": int(levels[idx]),
+            "actual_aps": round(float(aps_ma.iloc[idx]), 3),
+            "ideal_aps": round(float(ideal_aps_at(idx)), 3),
+            "bracket": str(df["target_bracket"].iloc[idx]) if "target_bracket" in df.columns else None,
+        })
+
     return {
         "recommendations": actionable,
         "all_zones": zone_analysis,
         "bracket_targets": bracket_targets,
         "ideal_ramp": round(avg_ramp_per_level, 5),
         "curve_model": "logarithmic",
+        "curve_points": curve_points,
         "summary": summary,
     }
 
@@ -392,10 +459,11 @@ def _recommend_difficulty_curve(df, aps_results, funnel_results):
 # 4. Fix vs. Replicate Levels
 # ---------------------------------------------------------------------------
 
-def _recommend_fix_replicate(df, ranking_results, dropoff_results):
+def _recommend_fix_replicate(df, ranking_results, dropoff_results, tutorial_max_level=0):
     """
     Combine ranking + outlier + dropoff data to create actionable
     'fix these' and 'clone these' lists.
+    Excludes Tutorial/onboarding levels — early churn is expected.
     """
     fix_list = []
     replicate_list = []
@@ -403,9 +471,11 @@ def _recommend_fix_replicate(df, ranking_results, dropoff_results):
     if not ranking_results:
         return {"fix": fix_list, "replicate": replicate_list, "summary": "No ranking data."}
 
-    rankings = ranking_results.get("rankings", [])
-    outliers = ranking_results.get("outliers", [])
-    spikes = dropoff_results.get("spikes", []) if dropoff_results else []
+    # Filter out tutorial/onboarding levels from all source data
+    rankings = [r for r in ranking_results.get("rankings", []) if r["level"] > tutorial_max_level]
+    outliers = [o for o in ranking_results.get("outliers", []) if o["level"] > tutorial_max_level]
+    all_spikes = dropoff_results.get("spikes", []) if dropoff_results else []
+    spikes = [s for s in all_spikes if s["level"] > tutorial_max_level]
 
     # Build spike lookup
     spike_levels = {s["level"]: s for s in spikes}
@@ -430,7 +500,9 @@ def _recommend_fix_replicate(df, ranking_results, dropoff_results):
         reasons.append(f"Bottom {((n - rankings.index(level_data)) / n * 100):.0f}% performance score ({level_data['perf_score']:.3f})")
 
         if lvl in spike_levels:
-            reasons.append(f"Drop-off spike ({spike_levels[lvl]['ratio']}× local avg)")
+            s = spike_levels[lvl]
+            spike_str = f"{s.get('sigma', s.get('ratio', 0))}σ" if 'sigma' in s else f"{s.get('ratio', 0)}×"
+            reasons.append(f"Drop-off spike ({spike_str} above expected)")
         if lvl in outlier_lookup and outlier_lookup[lvl]["direction"] == "underperforming":
             reasons.append(f"Statistical outlier (Z={outlier_lookup[lvl]['z_score']:.1f})")
 
@@ -458,7 +530,7 @@ def _recommend_fix_replicate(df, ranking_results, dropoff_results):
                 "churn": spike.get("combined_churn"),
                 "completion": None,
                 "revenue": None,
-                "reasons": [f"Critical drop-off spike ({spike['ratio']}× local avg)"],
+                "reasons": [f"Critical drop-off spike ({spike.get('sigma', spike.get('ratio', 0))}σ above expected)"],
                 "action": f"Critical player loss at this level. Reduce difficulty (current APS: {spike.get('aps', '—')}).",
             })
 
@@ -513,7 +585,8 @@ def _recommend_fix_replicate(df, ranking_results, dropoff_results):
     replicate_list.sort(key=lambda x: x["score"] if x["score"] is not None else 0, reverse=True)
     replicate_list = replicate_list[:25]
 
-    summary = f"{len(fix_list)} level(s) flagged for fixing. {len(replicate_list)} level(s) identified as models to replicate."
+    onboarding_note = f" Onboarding levels (L1–L{tutorial_max_level}) excluded." if tutorial_max_level > 0 else ""
+    summary = f"{len(fix_list)} level(s) flagged for fixing. {len(replicate_list)} level(s) identified as models to replicate.{onboarding_note}"
     return {"fix": fix_list, "replicate": replicate_list, "summary": summary}
 
 
@@ -529,7 +602,8 @@ def _suggest_fix_action(level_data, spike_data=None):
     if level_data.get("revenue_score", 0) < 0.01 and bracket in ("Hard", "Super Hard", "Wall"):
         parts.append(f"Low monetization for {bracket} — review sink/booster placement")
     if spike_data:
-        parts.append(f"Drop-off spike — players exit at {spike_data['ratio']}× normal rate")
+        spike_str = f"{spike_data.get('sigma', spike_data.get('ratio', 0))}σ" if 'sigma' in spike_data else f"{spike_data.get('ratio', 0)}×"
+        parts.append(f"Drop-off spike — players exit at {spike_str} above expected rate")
 
     return ". ".join(parts) if parts else f"Underperforming for {bracket} bracket — review level design."
 
@@ -682,20 +756,129 @@ def _compute_game_health(df, aps_results, funnel_results, ranking_results,
     details["pacing"] = f"Funnel pacing score: {pacing_score}/100"
 
     # --- 2. Retention Health ---
+    # Playtime-normalized retention: measures what % of players survive
+    # 1,000 minutes of accumulated playtime.
+    #
+    # Why this works:
+    #   - Per-level churn and per-level funnel % are progression metrics,
+    #     not time-based retention metrics. A game with short levels bleeds
+    #     more players per minute than one with long levels, even if both
+    #     have the same per-level churn.
+    #   - Normalizing by playtime accounts for level duration: a game where
+    #     each level takes 3 min and churns 10% loses players much faster
+    #     (per minute of engagement) than one where levels take 3 min and
+    #     churn 5%.
+    #   - This metric correlates with real day-over-day retention because
+    #     playtime is the best proxy for "time spent with the game" that
+    #     we can derive from level-based data.
+    #
+    # Fallback: if playtime data is unavailable, uses session churn + PLR.
+    PLAYTIME_TARGET = 1000  # minutes
+
     retention_score = 70  # default
-    if "funnel_pct" in df.columns and len(df) > 1:
-        end_retention = float(df["funnel_pct"].iloc[-1])
-        if end_retention >= 0.10:
-            retention_score = 90
-        elif end_retention >= 0.05:
-            retention_score = 75
-        elif end_retention >= 0.02:
-            retention_score = 55
-        elif end_retention >= 0.01:
-            retention_score = 35
-        else:
-            retention_score = 15
-        details["retention"] = f"End-of-funnel retention: {end_retention*100:.2f}% → score {retention_score}/100"
+    detail_parts = []
+
+    has_playtime = ("playtime" in df.columns and df["playtime"].notna().any()
+                    and float(df["playtime"].fillna(0).sum()) > 0)
+    has_funnel = "funnel_pct" in df.columns and len(df) > 1
+
+    if has_playtime and has_funnel:
+        # --- Playtime-normalized retention ---
+        playtime_vals = df["playtime"].fillna(0).values
+        funnel_vals = df["funnel_pct"].fillna(0).values
+        start_funnel = float(funnel_vals[0])
+
+        if start_funnel > 0:
+            cumulative_pt = np.cumsum(playtime_vals)
+            total_pt = float(cumulative_pt[-1])
+
+            # Find the level index where cumulative playtime hits the target
+            reached = np.where(cumulative_pt >= PLAYTIME_TARGET)[0]
+            if len(reached) > 0:
+                target_idx = int(reached[0])
+            else:
+                # Total playtime doesn't reach target — use last level
+                target_idx = len(df) - 1
+
+            target_funnel = float(funnel_vals[target_idx])
+            survival_at_target = target_funnel / start_funnel
+            target_level = int(df["level"].iloc[target_idx])
+            actual_minutes = float(cumulative_pt[target_idx])
+
+            # Score based on survival rate at 1000 minutes
+            # Calibrated from real game data:
+            #   >=75% survival = excellent, 65-75% = good, 55-65% = OK,
+            #   45-55% = below avg, 35-45% = poor, <35% = critical
+            if survival_at_target >= 0.75:
+                retention_score = 95
+            elif survival_at_target >= 0.65:
+                retention_score = 80
+            elif survival_at_target >= 0.55:
+                retention_score = 65
+            elif survival_at_target >= 0.45:
+                retention_score = 50
+            elif survival_at_target >= 0.35:
+                retention_score = 35
+            else:
+                retention_score = 20
+
+            reached_str = f"at L{target_level}" if total_pt >= PLAYTIME_TARGET else f"at L{target_level} (only {actual_minutes:.0f} min available)"
+            detail_parts.append(
+                f"Playtime retention: {survival_at_target*100:.1f}% survive "
+                f"{PLAYTIME_TARGET} min of play ({reached_str}) → {retention_score}/100"
+            )
+    else:
+        # --- Fallback: session churn + per-level retention ---
+        # Used when playtime column is not available
+        churn_sub = None
+        funnel_sub = None
+
+        if "churn" in df.columns and df["churn"].notna().any():
+            avg_session_churn = float(df["churn"].mean())
+            if avg_session_churn <= 0.03:
+                churn_sub = 95
+            elif avg_session_churn <= 0.05:
+                churn_sub = 85
+            elif avg_session_churn <= 0.06:
+                churn_sub = 75
+            elif avg_session_churn <= 0.08:
+                churn_sub = 60
+            elif avg_session_churn <= 0.10:
+                churn_sub = 45
+            elif avg_session_churn <= 0.12:
+                churn_sub = 30
+            else:
+                churn_sub = 15
+            detail_parts.append(f"Avg session churn: {avg_session_churn*100:.2f}% → {churn_sub}/100 (no playtime data)")
+
+        if has_funnel:
+            start_funnel = float(df["funnel_pct"].iloc[0])
+            end_funnel = float(df["funnel_pct"].iloc[-1])
+            if start_funnel > 0 and end_funnel > 0:
+                per_level_retention = (end_funnel / start_funnel) ** (1.0 / max(n - 1, 1))
+                if per_level_retention >= 0.999:
+                    funnel_sub = 95
+                elif per_level_retention >= 0.997:
+                    funnel_sub = 85
+                elif per_level_retention >= 0.995:
+                    funnel_sub = 75
+                elif per_level_retention >= 0.992:
+                    funnel_sub = 65
+                elif per_level_retention >= 0.988:
+                    funnel_sub = 50
+                elif per_level_retention >= 0.980:
+                    funnel_sub = 35
+                else:
+                    funnel_sub = 15
+
+        if churn_sub is not None and funnel_sub is not None:
+            retention_score = round(0.6 * churn_sub + 0.4 * funnel_sub)
+        elif churn_sub is not None:
+            retention_score = churn_sub
+        elif funnel_sub is not None:
+            retention_score = funnel_sub
+
+    details["retention"] = " | ".join(detail_parts) + f" → {retention_score}/100" if detail_parts else f"Default {retention_score}/100"
     scores["retention"] = retention_score
 
     # --- 3. Bracket Balance (includes distribution health) ---
@@ -830,4 +1013,346 @@ def _compute_game_health(df, aps_results, funnel_results, ranking_results,
         "details": details,
         "key_actions": key_actions,
         "bracket_distribution": bracket_distribution,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Playtime Economics — Churn vs Monetization per 120 minutes (2 hours)
+# ---------------------------------------------------------------------------
+
+ONBOARDING_LEVELS = 20   # Default onboarding block (first N levels)
+
+
+def _compute_playtime_economics(df, onboarding_cutoff=None):
+    """
+    Split playtime economics into two distinct views:
+
+    1. ONBOARDING (levels 1 – onboarding_cutoff, default 20):
+       Measures how smoothly players progress through early levels.
+       Reports: survival rate, per-level churn consistency (smoothness index
+       = inverse coefficient of variation), worst churn wall, pace, and
+       first monetisation touch level.
+
+    2. CORE LOOP (level onboarding_cutoff+1 onwards, 2-hour window):
+       Per-minute rates for churn, monetisation engagement, and revenue
+       within the first 7,200 seconds (2 hours) of accumulated playtime
+       after onboarding ends. Excludes onboarding distortion so metrics
+       reflect actual engaged gameplay.
+
+    Args:
+        df: level-indexed enriched DataFrame
+        onboarding_cutoff: number of onboarding levels to exclude from
+                           core-loop metrics (default ONBOARDING_LEVELS=20,
+                           automatically overridden by tutorial_max_level
+                           when it is larger).
+
+    Returns:
+        dict with keys: available, onboarding_cutoff, funnel, onboarding, core_loop
+    """
+    CHURN_WINDOW_SEC = 7200   # 2 hours in seconds
+
+    ob_cutoff = int(onboarding_cutoff) if onboarding_cutoff is not None else ONBOARDING_LEVELS
+
+    empty = {"available": False, "reason": "Missing playtime or funnel data"}
+
+    # Prefer "real_playtime" (total time per user per level incl. all retries).
+    # Fall back to "playtime" (avg time per single attempt) if unavailable.
+    playtime_col = ("real_playtime"
+                    if "real_playtime" in df.columns
+                       and df["real_playtime"].notna().any()
+                       and float(df["real_playtime"].fillna(0).sum()) > 0
+                    else "playtime")
+
+    has_playtime = (playtime_col in df.columns and df[playtime_col].notna().any()
+                    and float(df[playtime_col].fillna(0).sum()) > 0)
+    has_funnel = "funnel_pct" in df.columns and len(df) > 1
+
+    if not has_playtime or not has_funnel:
+        return empty
+
+    df = df.copy().sort_values("level").reset_index(drop=True)
+    n = len(df)
+
+    playtime_sec = df[playtime_col].fillna(0).values
+    total_pt_sec = float(playtime_sec.sum())
+    total_pt_min = total_pt_sec / 60.0
+
+    if total_pt_sec <= 0:
+        return empty
+
+    funnel_vals  = df["funnel_pct"].fillna(0).values
+    start_funnel = float(funnel_vals[0])
+
+    # ── ONBOARDING BLOCK ──────────────────────────────────────────────────────
+    ob_end = min(ob_cutoff, n) - 1   # last onboarding level index (0-based)
+    ob_n   = ob_end + 1
+
+    # Onboarding survival (fraction reaching the last onboarding level)
+    ob_end_funnel = float(funnel_vals[ob_end]) if ob_end < n else 0.0
+    ob_survival   = ob_end_funnel / start_funnel if start_funnel > 0 else 0.0
+    ob_churn_pct  = (1.0 - ob_survival) * 100
+
+    # Per-level churn rates (% of remaining players lost at each level)
+    ob_per_level_churn = []
+    prev_f = start_funnel
+    for i in range(ob_n):
+        curr_f = float(funnel_vals[i])
+        lost   = max(0.0, prev_f - curr_f)
+        pct    = (lost / prev_f * 100) if prev_f > 0 else 0.0
+        ob_per_level_churn.append(pct)
+        if curr_f > 0:
+            prev_f = curr_f
+
+    ob_churn_arr  = np.array(ob_per_level_churn)
+    mean_ob_churn = float(ob_churn_arr.mean()) if ob_n > 0 else 0.0
+    std_ob_churn  = float(ob_churn_arr.std())  if ob_n > 1 else 0.0
+    cv_ob_churn   = std_ob_churn / mean_ob_churn if mean_ob_churn > 0 else 0.0
+
+    # Worst churn wall: the single level with the largest drop
+    worst_wall_idx   = int(np.argmax(ob_churn_arr))
+    worst_wall_level = int(df["level"].iloc[worst_wall_idx])
+    worst_wall_pct   = float(ob_churn_arr[worst_wall_idx])
+
+    # Spike count: levels where per-level churn > 2× the onboarding mean
+    spike_count = int((ob_churn_arr > mean_ob_churn * 2.0).sum()) if mean_ob_churn > 0 else 0
+
+    # Onboarding pace
+    ob_pt_sec        = playtime_sec[:ob_n]
+    ob_total_sec     = float(ob_pt_sec.sum())
+    ob_total_min     = ob_total_sec / 60.0
+    ob_avg_sec_level = ob_total_sec / ob_n if ob_n > 0 else 0.0
+
+    # First monetisation touch: earliest level with any monet engagement > 0
+    monet_touch_cols = [c for c in ["iap_users_pct", "booster_users_pct", "egp_users_pct"]
+                        if c in df.columns]
+    first_monet_level = None
+    for i in range(n):
+        if any(pd.notna(df[c].iloc[i]) and float(df[c].iloc[i]) > 0
+               for c in monet_touch_cols):
+            first_monet_level = int(df["level"].iloc[i])
+            break
+
+    # Onboarding scores
+    # Survival score: % of players completing onboarding (higher is better)
+    if ob_survival >= 0.80:   ob_survival_score = 95
+    elif ob_survival >= 0.65: ob_survival_score = 80
+    elif ob_survival >= 0.50: ob_survival_score = 65
+    elif ob_survival >= 0.35: ob_survival_score = 50
+    elif ob_survival >= 0.20: ob_survival_score = 35
+    else:                     ob_survival_score = 20
+
+    # Smoothness score: CV of per-level churn (lower CV = smoother = better)
+    if cv_ob_churn <= 0.30:   ob_smooth_score = 95
+    elif cv_ob_churn <= 0.60: ob_smooth_score = 80
+    elif cv_ob_churn <= 1.00: ob_smooth_score = 65
+    elif cv_ob_churn <= 1.50: ob_smooth_score = 50
+    elif cv_ob_churn <= 2.00: ob_smooth_score = 35
+    else:                     ob_smooth_score = 20
+
+    # ── CORE LOOP BLOCK ───────────────────────────────────────────────────────
+    core_start = ob_end + 1   # first core-loop level index (0-based)
+
+    if core_start >= n:
+        core_loop = {
+            "available": False,
+            "reason": f"All {n} levels fall within the {ob_cutoff}-level onboarding block.",
+        }
+    else:
+        cl_pt_sec  = playtime_sec[core_start:]
+        cl_pt_min  = cl_pt_sec / 60.0
+        cl_fv      = funnel_vals[core_start:]
+        cl_n_total = len(cl_pt_sec)
+
+        # Window restriction within core loop
+        cum_cl_sec = np.cumsum(cl_pt_sec)
+        reached = np.where(cum_cl_sec >= CHURN_WINDOW_SEC)[0]
+        w_end = int(reached[0]) if len(reached) > 0 else cl_n_total - 1
+
+        w_pt_sec    = cl_pt_sec[:w_end + 1]
+        w_pt_min    = w_pt_sec / 60.0
+        w_total_sec = float(w_pt_sec.sum())
+        w_total_min = w_total_sec / 60.0
+        w_weights   = (w_pt_sec / w_total_sec if w_total_sec > 0
+                       else np.ones(w_end + 1) / (w_end + 1))
+        w_valid     = w_pt_sec > 0
+        w_n         = w_end + 1
+
+        # Churn: survival from start of core loop through the 2-hour window
+        cl_start_f  = float(cl_fv[0]) if len(cl_fv) > 0 else 0.0
+        cl_end_f    = float(cl_fv[w_end]) if w_end < len(cl_fv) else 0.0
+        cl_survival = cl_end_f / cl_start_f if cl_start_f > 0 else 0.0
+        cl_window_churn_pct = (1.0 - cl_survival) * 100
+        churn_per_min      = cl_window_churn_pct / w_total_min if w_total_min > 0 else 0.0
+        churn_window_level = int(df["level"].iloc[core_start + w_end])
+
+        cl_churn_raw = (df["churn"].fillna(0).values[core_start:core_start + w_n]
+                        if "churn" in df.columns else np.zeros(w_n))
+        avg_churn_per_level = float((cl_churn_raw * w_weights).sum())
+
+        # Monetisation (playtime-weighted within core-loop window)
+        def _ptw(col):
+            if col in df.columns:
+                return float((df[col].fillna(0).values[core_start:core_start + w_n]
+                               * w_weights).sum())
+            return None
+
+        iap_pct     = _ptw("iap_users_pct")
+        booster_pct = _ptw("booster_users_pct")   # kept for display only
+        egp_pct     = _ptw("egp_users_pct")       # kept for display only
+        sink_pct    = _ptw("sink_users_pct")       # kept for display only
+
+        # Monetisation = IAP conversion rate per minute.
+        # Only % of players who actually paid (IAP users %) is used in the score —
+        # booster/EGP/sink are economy derivatives, not real-money signals.
+        avg_level_min_w = w_total_min / w_n if w_n > 0 else 1.0
+        iap_pct_val     = iap_pct if iap_pct is not None else 0.0
+        monet_per_min   = (iap_pct_val / avg_level_min_w) * 100   # IAP %/min
+
+        # Revenue (playtime-weighted $/user per minute within core-loop window)
+        # Prefer explicit revenue_per_user column; fall back to iap_revenue / users
+        iap_rev   = (df["iap_revenue"].fillna(0).values
+                     if "iap_revenue" in df.columns else np.zeros(n))
+        users_arr = (df["users"].replace(0, np.nan).values
+                     if "users" in df.columns else np.full(n, np.nan))
+        if "revenue_per_user" in df.columns:
+            rev_pu = df["revenue_per_user"].fillna(0).values
+        else:
+            # iap_revenue is total $ at that level; divide by users who reached it
+            rev_pu = np.where(np.isfinite(users_arr) & (users_arr > 0),
+                              iap_rev / users_arr, 0.0)
+
+        w_rev_pu           = rev_pu[core_start:core_start + w_n]
+        w_rev_rate_per_min = np.zeros(w_n)
+        w_rev_rate_per_min[w_valid] = w_rev_pu[w_valid] / w_pt_min[w_valid]
+        avg_rev_rate       = float((w_rev_rate_per_min * w_weights).sum())
+        rev_per_min        = avg_rev_rate
+        # Total cohort revenue per user = total IAP / starting users
+        start_users = float(users_arr[0]) if np.isfinite(users_arr[0]) and users_arr[0] > 0 else 1.0
+        total_rev_per_user = float(iap_rev.sum()) / start_users
+        total_iap_revenue  = float(iap_rev.sum())
+
+        # Efficiency ratios
+        monet_per_churn = monet_per_min / churn_per_min if churn_per_min > 0 else None
+        rev_per_churn   = rev_per_min / (churn_per_min / 100.0) if churn_per_min > 0 else None
+
+        # Scores (same validated thresholds as before)
+        if churn_per_min <= 0.20:   churn_score = 95
+        elif churn_per_min <= 0.40: churn_score = 80
+        elif churn_per_min <= 0.65: churn_score = 65
+        elif churn_per_min <= 0.80: churn_score = 50
+        elif churn_per_min <= 1.00: churn_score = 35
+        else:                       churn_score = 20
+
+        # Monet score: IAP-only %/min (players who paid per minute of real play)
+        # Calibrated on 3 games: Sand Loop ~0.15%/min, Marble Sort ~0.09%/min,
+        # Card Factory ~0.05%/min.
+        if monet_per_min >= 0.30:   monet_score = 95
+        elif monet_per_min >= 0.15: monet_score = 80
+        elif monet_per_min >= 0.08: monet_score = 65
+        elif monet_per_min >= 0.03: monet_score = 50
+        elif monet_per_min >= 0.01: monet_score = 35
+        else:                       monet_score = 20
+
+        if rev_per_min >= 0.030:    revenue_score = 95
+        elif rev_per_min >= 0.010:  revenue_score = 80
+        elif rev_per_min >= 0.003:  revenue_score = 65
+        elif rev_per_min >= 0.001:  revenue_score = 50
+        elif rev_per_min >= 0.0003: revenue_score = 35
+        else:                       revenue_score = 20
+
+        # Monet/Churn efficiency: IAP%/min ÷ churn%/min
+        # Calibrated: Sand Loop ~0.46, Marble Sort/Card Factory ~0.11-0.13
+        if monet_per_churn is not None and monet_per_churn > 0:
+            if monet_per_churn >= 0.80:  churn_monet_score = 95
+            elif monet_per_churn >= 0.40: churn_monet_score = 80
+            elif monet_per_churn >= 0.20: churn_monet_score = 65
+            elif monet_per_churn >= 0.10: churn_monet_score = 50
+            elif monet_per_churn >= 0.05: churn_monet_score = 35
+            else:                         churn_monet_score = 20
+        else:
+            churn_monet_score = None
+
+        if rev_per_churn is not None and rev_per_churn > 0:
+            if rev_per_churn >= 3.0:    churn_rev_score = 95
+            elif rev_per_churn >= 1.0:  churn_rev_score = 80
+            elif rev_per_churn >= 0.3:  churn_rev_score = 65
+            elif rev_per_churn >= 0.1:  churn_rev_score = 50
+            elif rev_per_churn >= 0.03: churn_rev_score = 35
+            else:                       churn_rev_score = 20
+        else:
+            churn_rev_score = None
+
+        core_loop = {
+            "available": True,
+            "funnel": {
+                "total_levels":      cl_n_total,
+                "window_levels":     w_n,
+                "window_start_level": int(df["level"].iloc[core_start]),
+                "total_playtime_min": round(w_total_min + (ob_total_sec / 60.0), 1),
+                "window_min":        round(w_total_min, 1),
+                "avg_min_per_level": round(w_total_min / w_n, 2) if w_n > 0 else 0,
+            },
+            "churn": {
+                "churn_per_min":         round(churn_per_min, 3),
+                "survival_pct":          round(cl_survival * 100, 1),
+                "total_churn_pct":       round(cl_window_churn_pct, 1),
+                "window_min":            round(w_total_min, 1),
+                "window_level":          churn_window_level,
+                "avg_churn_per_level_pct": round(avg_churn_per_level * 100, 2),
+                "score":                 churn_score,
+            },
+            "monetization": {
+                # Score driver: IAP users % per minute (real-money conversion rate)
+                "iap_users_pct":      round(iap_pct * 100, 3) if iap_pct is not None else None,
+                "monet_per_min":      round(monet_per_min, 4),
+                "score":              monet_score,
+                # Context-only (not used in score)
+                "booster_users_pct":  round(booster_pct * 100, 2) if booster_pct is not None else None,
+                "egp_users_pct":      round(egp_pct * 100, 2) if egp_pct is not None else None,
+                "sink_users_pct":     round(sink_pct * 100, 2) if sink_pct is not None else None,
+            },
+            "revenue": {
+                "rev_per_min":        round(rev_per_min, 6),
+                "total_rev_per_user": round(total_rev_per_user, 4),
+                "total_iap_revenue":  round(total_iap_revenue, 2),
+                "score":              revenue_score,
+            },
+            "efficiency": {
+                "monet_per_churn":   round(monet_per_churn, 4) if monet_per_churn is not None else None,
+                "rev_per_churn":     round(rev_per_churn, 4) if rev_per_churn is not None else None,
+                "churn_monet_score": churn_monet_score,
+                "churn_rev_score":   churn_rev_score,
+            },
+        }
+
+    return {
+        "available": True,
+        "onboarding_cutoff": ob_cutoff,
+        "playtime_source": playtime_col,   # "real_playtime" or "playtime" fallback
+        "funnel": {
+            "total_levels":      n,
+            "total_playtime_sec": round(total_pt_sec, 1),
+            "total_playtime_min": round(total_pt_min, 1),
+            "avg_sec_per_level":  round(total_pt_sec / n, 1),
+        },
+        "onboarding": {
+            "levels":             ob_n,
+            "last_level":         int(df["level"].iloc[ob_end]),
+            "survival_pct":       round(ob_survival * 100, 1),
+            "churn_pct":          round(ob_churn_pct, 1),
+            "total_sec":          round(ob_total_sec, 1),
+            "total_min":          round(ob_total_min, 1),
+            "avg_sec_per_level":  round(ob_avg_sec_level, 1),
+            "cv_churn":           round(cv_ob_churn, 3),
+            "mean_churn_pct":     round(mean_ob_churn, 2),
+            "worst_wall_level":   worst_wall_level,
+            "worst_wall_pct":     round(worst_wall_pct, 1),
+            "spike_count":        spike_count,
+            "first_monet_level":  first_monet_level,
+            "per_level_churn":    [round(x, 2) for x in ob_per_level_churn],
+            "level_labels":       [int(df["level"].iloc[i]) for i in range(ob_n)],
+            "survival_score":     ob_survival_score,
+            "smoothness_score":   ob_smooth_score,
+        },
+        "core_loop": core_loop,
     }

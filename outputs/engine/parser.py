@@ -39,12 +39,13 @@ LEVEL_DATA_COLUMNS = {
     "Playtime": "playtime",
     "Win Playtime": "win_playtime",
     "Lose Playtime": "lose_playtime",
+    "Real Playtime": "real_playtime",
     "Objectives Left ": "objectives_left",
     "% Objectives Left": "objectives_left_pct",
 }
 
 # Ignored columns (documented in Data Dictionary)
-IGNORED_COLUMNS = ["Achieved", "Real Playtime"]
+IGNORED_COLUMNS = ["Achieved"]
 
 # Difficulty bracket mapping
 DIFFICULTY_CODE_MAP = {
@@ -61,6 +62,26 @@ DIFFICULTY_ORDER = ["Easy", "Medium", "Hard", "Super Hard", "Wall"]
 CHURN_WEIGHT_SESSION = 0.2
 CHURN_WEIGHT_3D = 0.5
 CHURN_WEIGHT_7D = 0.3
+
+# Funnel phase definitions
+# Tutorial = first N levels (flat number, not percentage).
+# Early/Mid/Late split the *remaining* levels by percentage of the post-tutorial range.
+TUTORIAL_LEVEL_COUNT = 30  # first 30 levels of every game are Tutorial
+
+FUNNEL_PHASES_POST_TUTORIAL = [
+    # Percentages are relative to the post-tutorial levels only
+    {"name": "Early", "start_pct": 0.00, "end_pct": 0.30, "expected_churn_mult": 1.6},
+    {"name": "Mid",   "start_pct": 0.30, "end_pct": 0.70, "expected_churn_mult": 1.0},
+    {"name": "Late",  "start_pct": 0.70, "end_pct": 1.00, "expected_churn_mult": 0.6},
+]
+
+# Full list (used by downstream code that iterates all phases)
+FUNNEL_PHASES = [
+    {"name": "Tutorial", "expected_churn_mult": 2.5},
+    {"name": "Early",    "expected_churn_mult": 1.6},
+    {"name": "Mid",      "expected_churn_mult": 1.0},
+    {"name": "Late",     "expected_churn_mult": 0.6},
+]
 
 # Revenue Score component weights — reflect actual revenue impact
 # IAP (direct cash) > EGP (premium purchase) > Boosters (moderate) > Sink (soft currency)
@@ -525,6 +546,80 @@ def join_and_enrich(level_data_df, level_params_df):
         merged["_funnel_position_weight"] = 0.6 + 0.8 * position_norm
     else:
         merged["_funnel_position_weight"] = 1.0
+
+    # --- Funnel Phase Assignment ---
+    # Tutorial = first TUTORIAL_LEVEL_COUNT levels (flat).
+    # Early/Mid/Late split the remaining levels by percentage.
+    if "level" in merged.columns and len(merged) > 1:
+        levels = merged["level"].values
+        # Pre-compute post-tutorial range once
+        post_tutorial_mask = levels > TUTORIAL_LEVEL_COUNT
+        pt_levels = levels[post_tutorial_mask]
+        pt_min = pt_levels.min() if len(pt_levels) > 0 else 0
+        pt_max = pt_levels.max() if len(pt_levels) > 0 else 0
+        pt_span = max(pt_max - pt_min, 1)
+
+        phases = []
+        for lvl in levels:
+            if lvl <= TUTORIAL_LEVEL_COUNT:
+                phases.append("Tutorial")
+            elif len(pt_levels) <= 1:
+                phases.append("Mid")  # fallback if almost no post-tutorial levels
+            else:
+                pct = (lvl - pt_min) / pt_span
+                assigned = "Mid"
+                for phase_def in FUNNEL_PHASES_POST_TUTORIAL:
+                    if phase_def["start_pct"] <= pct < phase_def["end_pct"]:
+                        assigned = phase_def["name"]
+                        break
+                if pct >= 1.0:
+                    assigned = FUNNEL_PHASES_POST_TUTORIAL[-1]["name"]
+                phases.append(assigned)
+        merged["_funnel_phase"] = phases
+
+        # Phase-aware expected churn multiplier (how much churn is "expected" at this position)
+        phase_mult_map = {p["name"]: p["expected_churn_mult"] for p in FUNNEL_PHASES}
+        merged["_phase_churn_mult"] = merged["_funnel_phase"].map(phase_mult_map).fillna(1.0)
+    else:
+        merged["_funnel_phase"] = "Mid"
+        merged["_phase_churn_mult"] = 1.0
+
+    # --- Expected Drop-off Baseline ---
+    # Fit an exponential decay to the drop-off data: expected(i) = a * exp(-b * i) + c
+    # This models the natural decline in drop-off rate as you move through the funnel.
+    # Levels that deviate *above* this baseline are genuinely problematic.
+    if "dropoff_rate" in merged.columns and len(merged) > 10:
+        dropoff_vals = merged["dropoff_rate"].fillna(0).values
+        n_levels = len(dropoff_vals)
+
+        # Robust baseline: use a wide rolling median (less sensitive to spikes)
+        # Then smooth it with a second pass
+        window = max(15, n_levels // 10)
+        rolling_median = pd.Series(dropoff_vals).rolling(
+            window=window, center=True, min_periods=3
+        ).median()
+        # Fill edges with nearest values
+        rolling_median = rolling_median.bfill().ffill()
+
+        # Second smoothing pass for a cleaner curve
+        expected_baseline = rolling_median.rolling(
+            window=max(7, window // 2), center=True, min_periods=3
+        ).mean()
+        expected_baseline = expected_baseline.bfill().ffill()
+
+        merged["_expected_dropoff"] = expected_baseline.values
+
+        # Deviation from expected: positive = worse than expected
+        merged["_dropoff_deviation"] = merged["dropoff_rate"] - merged["_expected_dropoff"]
+
+        # Phase-adjusted deviation: scale by the phase multiplier
+        # In Tutorial phase (mult=2.5), a deviation is divided by 2.5 → less alarming
+        # In Late phase (mult=0.6), a deviation is divided by 0.6 → more alarming
+        merged["_dropoff_deviation_adj"] = merged["_dropoff_deviation"] / merged["_phase_churn_mult"]
+    else:
+        merged["_expected_dropoff"] = 0.0
+        merged["_dropoff_deviation"] = 0.0
+        merged["_dropoff_deviation_adj"] = 0.0
 
     # --- Revenue Score (weighted composite monetization metric) ---
     # Weighted by actual revenue impact: IAP > EGP > Boosters > Sink

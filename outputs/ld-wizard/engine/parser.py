@@ -39,12 +39,13 @@ LEVEL_DATA_COLUMNS = {
     "Playtime": "playtime",
     "Win Playtime": "win_playtime",
     "Lose Playtime": "lose_playtime",
+    "Real Playtime": "real_playtime",
     "Objectives Left ": "objectives_left",
     "% Objectives Left": "objectives_left_pct",
 }
 
 # Ignored columns (documented in Data Dictionary)
-IGNORED_COLUMNS = ["Achieved", "Real Playtime"]
+IGNORED_COLUMNS = ["Achieved"]
 
 # Difficulty bracket mapping
 DIFFICULTY_CODE_MAP = {

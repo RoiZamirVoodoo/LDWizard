@@ -147,6 +147,15 @@
         </div>
     </div>
 
+    <!-- Row 5: Playtime Economics — Churn vs Monetization per 120 minutes (2 hours) -->
+    <div class="analysis-panel mt-2" id="playtimeEconPanel" style="display:none;">
+        <h4 style="font-size:0.92rem;">
+            Playtime Economics
+            <span style="font-size:0.72rem; color:#888; font-weight:400; margin-left:6px;">per-minute rates · 2-hour observation window</span>
+        </h4>
+        <div id="playtimeEconContent"></div>
+    </div>
+
 </div>
 
 <!-- =====================================================================
@@ -671,7 +680,279 @@ function loadExecSummary() {
             html += '</tbody></table>'; bmExecEl.innerHTML = html;
         }
 
+        // --- Playtime Economics ---
+        renderPlaytimeEconomics(recs.playtime_economics);
+
     }).catch(err => console.error('Exec summary load error:', err));
+}
+
+// =========================================================================
+// Playtime Economics renderer
+// =========================================================================
+function renderPlaytimeEconomics(pe) {
+    const panel = document.getElementById('playtimeEconPanel');
+    const container = document.getElementById('playtimeEconContent');
+    if (!panel || !container) return;
+    if (!pe || !pe.available) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+
+    const f  = pe.funnel;
+    const ob = pe.onboarding;
+    const cl = pe.core_loop;
+
+    function scoreColor(s) {
+        if (s >= 80) return '#27ae60';
+        if (s >= 60) return '#2980b9';
+        if (s >= 40) return '#e67e22';
+        return '#D45B5B';
+    }
+    function scoreLabel(s) {
+        if (s >= 80) return 'Excellent';
+        if (s >= 60) return 'Good';
+        if (s >= 40) return 'Below Avg';
+        return 'Poor';
+    }
+    function scoreBar(label, score, detail) {
+        const col = scoreColor(score);
+        return '<div style="margin-bottom:10px;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">'
+            + '<span style="font-size:0.82rem;font-weight:600;color:#333;">' + label + '</span>'
+            + '<span style="font-size:0.78rem;font-weight:700;color:' + col + ';">' + score + '/100 \u2014 ' + scoreLabel(score) + '</span>'
+            + '</div>'
+            + '<div style="background:#f0eeeb;border-radius:6px;height:8px;">'
+            + '<div style="background:' + col + ';height:100%;border-radius:6px;width:' + score + '%;transition:width 0.5s;"></div>'
+            + '</div>'
+            + '<div style="font-size:0.72rem;color:#888;margin-top:2px;">' + detail + '</div>'
+            + '</div>';
+    }
+
+    let html = '';
+
+    // Funnel context strip
+    const avgMinPerLevel = f.total_playtime_sec ? (f.total_playtime_sec / f.total_levels / 60).toFixed(2) : '—';
+    html += '<div style="font-size:0.75rem;color:#999;margin-bottom:14px;">'
+        + f.total_levels + ' total levels \u00b7 '
+        + f.total_playtime_min.toFixed(1) + ' real min cumulative playtime \u00b7 '
+        + 'avg ' + avgMinPerLevel + ' min/level \u00b7 '
+        + 'Onboarding = L1\u2013' + ob.last_level + ' (' + ob.levels + ' levels) \u00b7 '
+        + 'Core loop = L' + (ob.last_level + 1) + '+ (2-hr window, per-minute rates)'
+        + '</div>';
+
+    // ── SECTION 1: ONBOARDING ─────────────────────────────────────────────
+    html += '<div style="border-left:3px solid #5B8DB8;padding-left:12px;margin-bottom:20px;">';
+    html += '<div style="font-size:0.85rem;font-weight:700;color:#3A7CA5;margin-bottom:10px;">'
+        + '\ud83c\udfae Onboarding  \u2014  L1\u2013' + ob.last_level
+        + '  \u00b7  ' + ob.levels + ' levels  \u00b7  ' + ob.total_min.toFixed(1) + ' min'
+        + '</div>';
+
+    html += '<div class="row g-3">';
+
+    // Left col: survival + smoothness score bars
+    html += '<div class="col-md-6">';
+    html += '<div style="border:1px solid #dce8f0;border-radius:8px;padding:12px 14px;background:#f6fafd;">';
+    html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:10px;">Onboarding Scores</div>';
+
+    html += scoreBar('Onboarding Survival', ob.survival_score,
+        ob.survival_pct + '% of players reach L' + ob.last_level
+        + ' \u2014 ' + ob.churn_pct.toFixed(1) + '% lost during onboarding (higher is better)');
+
+    html += scoreBar('Smoothness Index', ob.smoothness_score,
+        'Churn variance (CV) = ' + ob.cv_churn.toFixed(2)
+        + ' \u2014 avg ' + ob.mean_churn_pct.toFixed(2) + '%/level \u2014 '
+        + ob.spike_count + ' spike' + (ob.spike_count !== 1 ? 's' : '') + ' (\u22652\u00d7 mean) (lower CV is better)');
+
+    // Worst wall callout
+    const wallColor = ob.worst_wall_pct > 15 ? '#D45B5B' : ob.worst_wall_pct > 8 ? '#e67e22' : '#666';
+    html += '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;background:' + (ob.worst_wall_pct > 8 ? '#fff3f0' : '#f8f8f8') + ';font-size:0.76rem;color:' + wallColor + ';font-weight:600;">'
+        + '\u26a0\ufe0f Worst wall: L' + ob.worst_wall_level + ' \u2014 ' + ob.worst_wall_pct.toFixed(1) + '% single-level churn'
+        + '</div>';
+
+    // First monetisation touch
+    if (ob.first_monet_level != null) {
+        const monetInOb = ob.first_monet_level <= ob.last_level;
+        html += '<div style="margin-top:5px;font-size:0.76rem;color:' + (monetInOb ? '#27ae60' : '#e67e22') + ';">'
+            + (monetInOb ? '\u2705' : '\u23f3') + ' First monetisation touch: L' + ob.first_monet_level
+            + (monetInOb ? ' (within onboarding)' : ' (after onboarding ends)')
+            + '</div>';
+    }
+
+    html += '</div></div>';
+
+    // Right col: per-level churn sparkline
+    html += '<div class="col-md-6">';
+    html += '<div style="border:1px solid #dce8f0;border-radius:8px;padding:12px 14px;background:#f6fafd;">';
+    html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:8px;">Per-Level Churn During Onboarding</div>';
+    html += '<div style="position:relative;height:130px;"><canvas id="obChurnBar"></canvas></div>';
+    html += '<div style="font-size:0.70rem;color:#aaa;margin-top:4px;">'
+        + '% players lost per level \u00b7 red = spike (>2\u00d7 avg) \u00b7 orange = elevated \u00b7 avg '
+        + ob.avg_sec_per_level.toFixed(0) + 's/level</div>';
+    html += '</div></div>';
+
+    html += '</div>'; // close row
+    html += '</div>'; // close onboarding section
+
+    // ── SECTION 2: CORE LOOP ──────────────────────────────────────────────
+    html += '<div style="border-left:3px solid #8B5CF6;padding-left:12px;">';
+    html += '<div style="font-size:0.85rem;font-weight:700;color:#6D3FC7;margin-bottom:10px;">'
+        + '\u26a1 Core Loop  \u2014  L' + (ob.last_level + 1) + '+  \u00b7  2-hour observation window  \u00b7  per-minute rates'
+        + '</div>';
+
+    if (!cl || !cl.available) {
+        html += '<div style="font-size:0.82rem;color:#999;padding:8px 0;">'
+            + (cl && cl.reason ? cl.reason : 'Insufficient levels beyond onboarding for core-loop analysis.')
+            + '</div>';
+    } else {
+        const c = cl.churn;
+        const m = cl.monetization;
+        const r = cl.revenue;
+        const e = cl.efficiency;
+        const wf = cl.funnel;
+
+        html += '<div style="font-size:0.75rem;color:#999;margin-bottom:10px;">'
+            + wf.window_levels + ' levels in window \u00b7 '
+            + wf.window_min.toFixed(1) + ' min \u00b7 '
+            + 'avg ' + wf.avg_min_per_level.toFixed(2) + ' min/level \u00b7 '
+            + 'Churn = %/min \u00b7 Monet = IAP users %/min \u00b7 Revenue = $/user/min'
+            + '</div>';
+
+        html += '<div class="row g-3">';
+
+        // Left col: individual scores
+        html += '<div class="col-md-6">';
+        html += '<div style="border:1px solid #e8e5e0;border-radius:8px;padding:12px 14px;background:#fafaf8;">';
+        html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:10px;">Core Loop Scores</div>';
+
+        html += scoreBar('Churn', c.score,
+            c.churn_per_min.toFixed(3) + '% churn per minute'
+            + ' \u2014 ' + c.total_churn_pct + '% lost over '
+            + c.window_min.toFixed(0) + ' min (' + wf.window_levels + ' levels), '
+            + c.survival_pct + '% survive (lower is better)');
+
+        // Monetization = IAP users %/min (real-money conversion rate only)
+        let monetDetail = (m.iap_users_pct != null ? m.iap_users_pct.toFixed(3) : '--')
+            + '% of players paid per level \u00f7 avg level time \u2192 '
+            + m.monet_per_min.toFixed(4) + '% IAP conversion per minute';
+        const ctxParts = [];
+        if (m.booster_users_pct != null) ctxParts.push('Booster ' + m.booster_users_pct + '%');
+        if (m.egp_users_pct != null) ctxParts.push('EGP ' + m.egp_users_pct + '%');
+        if (ctxParts.length > 0) monetDetail += ' \u00b7 context: ' + ctxParts.join(', ');
+        html += scoreBar('IAP Monetization', m.score, monetDetail);
+
+        html += scoreBar('Revenue', r.score,
+            '$' + r.rev_per_min.toFixed(6) + '/user per minute'
+            + ' \u2014 $' + r.total_rev_per_user.toFixed(2) + '/cohort user'
+            + ' \u2014 IAP pool $' + r.total_iap_revenue.toLocaleString('en-US', {maximumFractionDigits:0}));
+
+        html += '</div></div>';
+
+        // Right col: efficiency ratios + radar
+        html += '<div class="col-md-6">';
+        html += '<div style="border:1px solid #e8e5e0;border-radius:8px;padding:12px 14px;background:#fafaf8;">';
+        html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:10px;">Efficiency Ratios</div>';
+
+        if (e.churn_monet_score != null) {
+            html += scoreBar('Churn / Monetization', e.churn_monet_score,
+                (e.monet_per_churn != null ? e.monet_per_churn.toFixed(3) : '--')
+                + ' monet%/min per churn%/min (higher = engagement outpaces churn)');
+        } else {
+            html += '<div style="font-size:0.82rem;color:#999;margin-bottom:10px;">Churn / Monetization: insufficient data</div>';
+        }
+        if (e.churn_rev_score != null) {
+            html += scoreBar('Churn / Revenue', e.churn_rev_score,
+                '$' + (e.rev_per_churn != null ? e.rev_per_churn.toFixed(4) : '--')
+                + ' per unit of churn (higher = more $ earned before players leave)');
+        } else {
+            html += '<div style="font-size:0.82rem;color:#999;margin-bottom:10px;">Churn / Revenue: insufficient data</div>';
+        }
+
+        html += '<div style="margin-top:10px;position:relative;height:180px;"><canvas id="playtimeEconRadar"></canvas></div>';
+        html += '</div></div>';
+
+        html += '</div>'; // close row
+    }
+
+    html += '</div>'; // close core loop section
+    container.innerHTML = html;
+
+    // ── CHART: Onboarding per-level churn bar ─────────────────────────────
+    const obCtx = document.getElementById('obChurnBar');
+    if (obCtx && ob.per_level_churn && ob.level_labels) {
+        const barColors = ob.per_level_churn.map(v =>
+            v > ob.mean_churn_pct * 2   ? 'rgba(212,91,91,0.82)'   :
+            v > ob.mean_churn_pct * 1.3 ? 'rgba(230,126,34,0.72)'  :
+            'rgba(91,141,184,0.62)'
+        );
+        safeNewChart(obCtx, {
+            type: 'bar',
+            data: {
+                labels: ob.level_labels.map(l => 'L' + l),
+                datasets: [{
+                    label: '% churn',
+                    data: ob.per_level_churn,
+                    backgroundColor: barColors,
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(1) + '% churn' } }
+                },
+                scales: {
+                    x: { ticks: { font: { size: 8 }, maxRotation: 0 }, grid: { display: false } },
+                    y: { ticks: { font: { size: 8 } }, grid: { color: '#e8e8e8' } }
+                }
+            }
+        });
+    }
+
+    // ── CHART: Core loop radar ────────────────────────────────────────────
+    const radarCtx = document.getElementById('playtimeEconRadar');
+    if (radarCtx && cl && cl.available) {
+        const c = cl.churn; const m = cl.monetization;
+        const r = cl.revenue; const e = cl.efficiency;
+        const labels = ['Churn', 'IAP Monetization', 'Revenue'];
+        const scores = [c.score, m.score, r.score];
+        if (e.churn_monet_score != null) { labels.push('Churn/Monet Eff.'); scores.push(e.churn_monet_score); }
+        if (e.churn_rev_score != null) { labels.push('Churn/Rev Eff.'); scores.push(e.churn_rev_score); }
+
+        safeNewChart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Score',
+                    data: scores,
+                    backgroundColor: 'rgba(139,92,246,0.15)',
+                    borderColor: '#8B5CF6',
+                    borderWidth: 2,
+                    pointBackgroundColor: scores.map(s => scoreColor(s)),
+                    pointRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        min: 0, max: 100,
+                        ticks: { stepSize: 25, font: { size: 9 }, backdropColor: 'transparent' },
+                        pointLabels: { font: { size: 10 } },
+                        grid: { color: '#e8e5e0' },
+                        angleLines: { color: '#e8e5e0' },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.label + ': ' + ctx.raw + '/100'
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // =========================================================================
