@@ -9,6 +9,7 @@ from engine.analysis.ranking import compute_ranking
 from engine.analysis.dropoff import compute_dropoff_analysis
 from engine.analysis.correlation import compute_correlation_analysis
 from engine.analysis.recommendations import compute_recommendations
+from engine.analysis.main_breakdown import compute_main_breakdown
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -28,6 +29,7 @@ _app_data = {
     "dropoff_results": None,
     "correlation_results": None,
     "recommendations": None,
+    "main_breakdown": None,
     "level_range": None,  # Current filter: {"min": int, "max": int} or None
 }
 
@@ -47,6 +49,7 @@ def _run_all_analyses(df):
         _app_data["ranking_results"], _app_data["dropoff_results"],
         _app_data["correlation_results"]
     )
+    _app_data["main_breakdown"] = compute_main_breakdown(df)
 
 
 def allowed_file(filename, allowed_extensions):
@@ -217,6 +220,14 @@ def api_recommendations():
     return json.dumps(_app_data["recommendations"])
 
 
+@app.route("/api/data/main-breakdown")
+def api_main_breakdown():
+    """API endpoint returning main breakdown analysis as JSON."""
+    if _app_data["main_breakdown"] is None:
+        return json.dumps({"error": "No data loaded"}), 400
+    return json.dumps(_app_data["main_breakdown"])
+
+
 @app.route("/api/reanalyze", methods=["POST"])
 def api_reanalyze():
     """Re-run all analyses on a filtered level range."""
@@ -293,6 +304,7 @@ def reset():
     _app_data["dropoff_results"] = None
     _app_data["correlation_results"] = None
     _app_data["recommendations"] = None
+    _app_data["main_breakdown"] = None
     _app_data["level_range"] = None
     session.clear()
     flash("Session reset. Upload new files to begin.", "info")
