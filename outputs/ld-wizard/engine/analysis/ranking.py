@@ -6,8 +6,8 @@ Identifies best/worst performers and outlier levels.
 
 import pandas as pd
 import numpy as np
-from engine.parser import DIFFICULTY_ORDER, REVENUE_WEIGHTS
-from engine.aps_engine import BRACKET_GOALS
+from engine.parser import DIFFICULTY_ORDER
+from engine.analysis.difficulty_bands import build_aps_quantile_bands, classify_aps_bracket, format_band_label
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ def compute_ranking(df):
             - outliers: list of levels that are statistical outliers within their bracket
             - insights: list of string insights
     """
-    required = ["level", "target_bracket", "combined_churn", "completion_rate", "aps"]
+    required = ["level", "combined_churn", "completion_rate", "aps"]
     missing = [c for c in required if c not in df.columns]
     if missing:
         return {
@@ -50,71 +50,75 @@ def compute_ranking(df):
         }
 
     df = df.copy().sort_values("level").reset_index(drop=True)
+    aps_bands = build_aps_quantile_bands(df["aps"].tolist())
+    if not aps_bands:
+        return {
+            "rankings": [], "best_per_bracket": {}, "worst_per_bracket": {},
+            "outliers": [], "insights": ["Unable to derive APS peer brackets from the current scope."],
+        }
+    df["peer_bracket"] = df["aps"].apply(lambda value: classify_aps_bracket(value, aps_bands))
+    df["peer_band_label"] = df["peer_bracket"].map(
+        lambda bracket: format_band_label(
+            aps_bands.get(bracket, {}).get("min"),
+            aps_bands.get(bracket, {}).get("max"),
+            open_ended=bracket == DIFFICULTY_ORDER[-1],
+        )
+    )
 
-    # --- Compute weighted revenue score (reuse weights from parser) ---
-    if "_revenue_score" not in df.columns:
-        num = pd.Series(0.0, index=df.index)
-        tw = 0.0
-        for col, w in REVENUE_WEIGHTS.items():
-            if col in df.columns:
-                num += df[col].fillna(0) * w
-                tw += w
-        df["_revenue_score"] = (num / tw) if tw > 0 else 0.0
+    users = df["users"].replace(0, np.nan) if "users" in df.columns else pd.Series(np.nan, index=df.index)
+    df["revenue_per_k_users"] = (
+        df.get("iap_revenue", pd.Series(0.0, index=df.index)).fillna(0) / users
+    ).replace([np.inf, -np.inf], np.nan).fillna(0) * 1000.0
+    df["transactions_per_k_users"] = (
+        df.get("iap_transactions", pd.Series(0.0, index=df.index)).fillna(0) / users
+    ).replace([np.inf, -np.inf], np.nan).fillna(0) * 1000.0
+    df["payer_rate"] = df.get("iap_users_pct", pd.Series(0.0, index=df.index)).fillna(0).clip(lower=0, upper=1)
+    df["volume_strength"] = 1.0 if "users" not in df.columns else _scale_series(df["users"].fillna(0), 0.25, 0.90)
+    df["revenue_strength"] = _scale_series(df["revenue_per_k_users"], 0.10, 0.90)
+    df["payer_strength"] = _scale_series(df["payer_rate"], 0.10, 0.90)
+    df["transaction_strength"] = _scale_series(df["transactions_per_k_users"], 0.10, 0.90)
+    df["completion_strength"] = df["completion_rate"].fillna(0).clip(lower=0, upper=1)
+    df["churn_penalty"] = _scale_series(df["combined_churn"].fillna(0).clip(lower=0, upper=1), 0.10, 0.85)
+    df["churn_efficiency"] = 1.0 - df["churn_penalty"]
+    df["monetization_strength"] = (
+        0.60 * df["revenue_strength"]
+        + 0.25 * df["payer_strength"]
+        + 0.15 * df["transaction_strength"]
+    ).clip(lower=0, upper=1)
 
     # Fill NaN
-    for col in ["combined_churn", "completion_rate", "_revenue_score"]:
+    for col in ["combined_churn", "completion_rate", "monetization_strength", "revenue_per_k_users", "transactions_per_k_users", "payer_rate"]:
         if col in df.columns:
             df[col] = df[col].fillna(0)
 
-    # --- Compute composite performance score per level ---
-    # Uses funnel position weight: early churn is discounted (uncommitted players),
-    # late churn is amplified (losing engaged players is costlier).
-    has_position_weight = "_funnel_position_weight" in df.columns
-    scores = []
-    for _, row in df.iterrows():
-        bracket = row["target_bracket"]
-        goals = BRACKET_GOALS.get(bracket, BRACKET_GOALS.get("Hard", {}))
+    # Monetization leads; churn acts like a tax; completion and volume stop
+    # tiny low-friction levels from dominating without revenue.
+    df["perf_score_raw"] = (
+        (0.72 * df["monetization_strength"] + 0.28 * df["completion_strength"])
+        * (0.30 + 0.70 * df["churn_efficiency"])
+        * (0.55 + 0.45 * df["volume_strength"])
+    ).round(4)
 
-        # Churn: lower is better → invert
-        raw_churn = min(max(row["combined_churn"], 0), 1)
-        # Apply funnel position weight to churn penalty:
-        # Higher weight at late levels means churn hurts score MORE there.
-        # Lower weight at early levels means churn is partially forgiven.
-        pos_w = row["_funnel_position_weight"] if has_position_weight else 1.0
-        adjusted_churn = min(raw_churn * pos_w, 1.0)
-        churn_score = 1.0 - adjusted_churn
-
-        # Completion: higher is better
-        completion_score = min(max(row["completion_rate"], 0), 1)
-        # Revenue
-        revenue_score = min(max(row["_revenue_score"], 0), 1)
-
-        composite = (
-            goals.get("combined_churn", 0.33) * churn_score
-            + goals.get("completion_rate", 0.33) * completion_score
-            + goals.get("revenue_score", 0.34) * revenue_score
-        )
-        scores.append(round(composite, 4))
-
-    df["perf_score_raw"] = scores
-
-    # --- Bracket-relative normalization ---
-    # Z-score within each bracket, then rescale to 0–1 via percentile rank.
-    # This ensures Hard levels compete with Hard levels, not with Easy levels.
-    # Brackets with < 5 levels fall back to a global percentile.
-    df["perf_score"] = _normalize_scores_by_bracket(df)
+    # --- APS-peer-relative normalization ---
+    df["perf_score"] = _normalize_scores_by_bracket(df, bracket_col="peer_bracket")
 
     # --- Build ranking list ---
     rankings = []
     for _, row in df.iterrows():
         entry = {
             "level": int(row["level"]),
-            "bracket": row["target_bracket"],
+            "bracket": row["peer_bracket"],
+            "peer_band_label": row["peer_band_label"],
+            "target_bracket": row["target_bracket"] if "target_bracket" in df.columns else None,
             "perf_score": row["perf_score"],
+            "perf_score_raw": round(float(row["perf_score_raw"]), 4),
             "aps": round(float(row["aps"]), 3) if pd.notna(row.get("aps")) else None,
             "combined_churn": round(float(row["combined_churn"]), 4),
             "completion_rate": round(float(row["completion_rate"]), 4),
-            "revenue_score": round(float(row["_revenue_score"]), 4),
+            "revenue_score": round(float(row["monetization_strength"]), 4),
+            "revenue_per_k_users": round(float(row["revenue_per_k_users"]), 2),
+            "transactions_per_k_users": round(float(row["transactions_per_k_users"]), 2),
+            "iap_users_pct": round(float(row["payer_rate"]) * 100, 3),
             "win_rate": round(float(row["win_rate"]), 4) if "win_rate" in df.columns and pd.notna(row.get("win_rate")) else None,
             "users": int(row["users"]) if "users" in df.columns and pd.notna(row.get("users")) else None,
             "dropoff_rate": round(float(row["dropoff_rate"]), 5) if "dropoff_rate" in df.columns and pd.notna(row.get("dropoff_rate")) else None,
@@ -138,7 +142,7 @@ def compute_ranking(df):
             worst_per_bracket[bracket] = bracket_levels[-BOTTOM_N:][::-1]  # worst first
 
     # --- Outlier detection ---
-    outliers = _detect_outliers(df)
+    outliers = _detect_outliers(df, bracket_col="peer_bracket")
 
     # --- Insights ---
     insights = _generate_ranking_insights(df, rankings, best_per_bracket, worst_per_bracket, outliers)
@@ -149,10 +153,20 @@ def compute_ranking(df):
         "worst_per_bracket": worst_per_bracket,
         "outliers": outliers,
         "insights": insights,
+        "band_method": "quantile",
+        "bands": [
+            {
+                "bracket": bracket,
+                "min": round(band["min"], 3),
+                "max": round(band["max"], 3),
+                "label": format_band_label(band["min"], band["max"], open_ended=bracket == DIFFICULTY_ORDER[-1]),
+            }
+            for bracket, band in aps_bands.items()
+        ],
     }
 
 
-def _normalize_scores_by_bracket(df, min_bracket_size=5):
+def _normalize_scores_by_bracket(df, bracket_col="target_bracket", min_bracket_size=5):
     """
     Normalize perf_score_raw within each difficulty bracket so that levels
     compete against peers of similar difficulty.
@@ -169,8 +183,8 @@ def _normalize_scores_by_bracket(df, min_bracket_size=5):
     result = pd.Series(0.5, index=df.index)  # default mid-range
     global_scores = df["perf_score_raw"]
 
-    for bracket in df["target_bracket"].unique():
-        mask = df["target_bracket"] == bracket
+    for bracket in df[bracket_col].dropna().unique():
+        mask = df[bracket_col] == bracket
         subset = df.loc[mask, "perf_score_raw"]
 
         if len(subset) < min_bracket_size:
@@ -183,7 +197,7 @@ def _normalize_scores_by_bracket(df, min_bracket_size=5):
     return result.round(4)
 
 
-def _detect_outliers(df):
+def _detect_outliers(df, bracket_col="peer_bracket"):
     """
     Detect levels whose composite score is an outlier within their bracket
     (Z-score based).
@@ -191,7 +205,7 @@ def _detect_outliers(df):
     outliers = []
     raw_col = "perf_score_raw" if "perf_score_raw" in df.columns else "perf_score"
     for bracket in DIFFICULTY_ORDER:
-        subset = df[df["target_bracket"] == bracket]
+        subset = df[df[bracket_col] == bracket]
         if len(subset) < 5:
             continue
 
@@ -219,6 +233,20 @@ def _detect_outliers(df):
     return outliers
 
 
+def _scale_series(series, low_quantile, high_quantile):
+    values = series.fillna(0).astype(float).to_numpy()
+    if len(values) == 0:
+        return pd.Series(0.5, index=series.index)
+
+    low = float(np.quantile(values, low_quantile))
+    high = float(np.quantile(values, high_quantile))
+    if high <= low:
+        return pd.Series(0.5, index=series.index)
+
+    scaled = (series.astype(float) - low) / (high - low)
+    return scaled.clip(lower=0.0, upper=1.0).fillna(0.0)
+
+
 def _generate_ranking_insights(df, rankings, best, worst, outliers):
     """Generate human-readable insights about level performance."""
     insights = []
@@ -228,7 +256,7 @@ def _generate_ranking_insights(df, rankings, best, worst, outliers):
     if scores:
         avg = sum(scores) / len(scores)
         insights.append(
-            f"Performance scores are bracket-relative (each level scored against its difficulty peers). "
+            f"Performance scores are APS-peer-relative: levels compete inside adaptive APS quintiles, not by target tag. "
             f"Average: {avg:.3f}, range: {min(scores):.3f} – {max(scores):.3f}."
         )
 
@@ -237,8 +265,8 @@ def _generate_ranking_insights(df, rankings, best, worst, outliers):
         top = rankings[0]
         insights.append(
             f"Best performing level: L{top['level']} ({top['bracket']}) — "
-            f"score {top['perf_score']:.3f}, churn {top['combined_churn']*100:.2f}%, "
-            f"completion {top['completion_rate']*100:.1f}%."
+            f"score {top['perf_score']:.3f}, revenue/1k {top['revenue_per_k_users']:.1f}, "
+            f"churn {top['combined_churn']*100:.2f}%."
         )
 
     # Worst overall level
@@ -246,8 +274,8 @@ def _generate_ranking_insights(df, rankings, best, worst, outliers):
         bottom = rankings[-1]
         insights.append(
             f"Worst performing level: L{bottom['level']} ({bottom['bracket']}) — "
-            f"score {bottom['perf_score']:.3f}, churn {bottom['combined_churn']*100:.2f}%, "
-            f"completion {bottom['completion_rate']*100:.1f}%."
+            f"score {bottom['perf_score']:.3f}, revenue/1k {bottom['revenue_per_k_users']:.1f}, "
+            f"churn {bottom['combined_churn']*100:.2f}%."
         )
 
     # Bracket score comparison

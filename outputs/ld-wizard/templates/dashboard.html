@@ -5,24 +5,32 @@
 {% endblock %}
 
 {% block content %}
-<!-- Dashboard header with file info -->
 <div class="dashboard-header">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
-                <h5 class="mb-1" style="font-weight: 600;">Analysis Dashboard</h5>
+                <h5 class="mb-1" style="font-weight: 600;">Focus Dashboard</h5>
                 <div class="file-info">
-                    <strong>Level Data:</strong> {{ level_data_name }}
+                    <strong>Level Data:</strong>
+                    {% if level_data_name %}
+                    {{ level_data_name }}
+                    {% else %}
+                    <em>Not loaded</em>
+                    {% endif %}
                     {% if level_params_name %}
                     &nbsp;&middot;&nbsp;
                     <strong>Parameters:</strong> {{ level_params_name }}
-                    {% else %}
+                    {% elif level_data_name %}
                     &nbsp;&middot;&nbsp;
                     <span class="text-muted"><em>No Level Parameters file provided</em></span>
                     {% endif %}
                     {% if summary.has_immature_data %}
                     &nbsp;&middot;&nbsp;
                     <span class="rec-badge rec-badge-medium">Immature Data</span>
+                    {% endif %}
+                    {% if ab_test_name %}
+                    &nbsp;&middot;&nbsp;
+                    <strong>AB Test:</strong> {{ ab_test_name }}
                     {% endif %}
                 </div>
             </div>
@@ -31,1994 +39,296 @@
     </div>
 </div>
 
-<!-- Level Range Filter -->
-<div class="container-fluid">
+<div class="container-fluid pb-4">
     <div class="level-range-bar" id="levelRangeBar">
         <div class="d-flex align-items-center gap-3 flex-wrap">
-            <span class="fw-semibold" style="font-size: 0.85rem; color: #555;">Level Range:</span>
+            <span class="fw-semibold focus-bar-label">Analysis Scope</span>
             <div class="d-flex align-items-center gap-2">
-                <input type="number" id="levelMin" class="form-control form-control-sm level-range-input" placeholder="Min" style="width: 90px;">
-                <span style="color: #999;">&ndash;</span>
-                <input type="number" id="levelMax" class="form-control form-control-sm level-range-input" placeholder="Max" style="width: 90px;">
+                <label for="levelStart" class="focus-field-label">Start</label>
+                <input type="number" id="levelStart" class="form-control form-control-sm level-range-input" placeholder="Start" style="width: 96px;">
+                <label for="levelEnd" class="focus-field-label">End</label>
+                <input type="number" id="levelEnd" class="form-control form-control-sm level-range-input" placeholder="End" style="width: 96px;">
+                <label for="loopStart" class="focus-field-label">Loop Start</label>
+                <input type="number" id="loopStart" class="form-control form-control-sm level-range-input" placeholder="Optional" style="width: 110px;">
             </div>
-            <button id="applyRangeBtn" class="btn btn-sm btn-primary" style="font-size: 0.8rem;" onclick="applyLevelRange()">Apply Filter</button>
-            <button id="resetRangeBtn" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem; display: none;" onclick="resetLevelRange()">Reset to Full</button>
+            <button id="applyRangeBtn" class="btn btn-sm btn-primary" style="font-size: 0.8rem;">Apply Filter</button>
+            <button id="resetRangeBtn" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem; display: none;">Reset to Full</button>
             <span id="rangeInfo" class="text-muted" style="font-size: 0.8rem;"></span>
             <span id="rangeSpinner" class="text-muted" style="font-size: 0.8rem; display: none;">
-                <span class="spinner-border spinner-border-sm" role="status"></span> Re-analyzing&hellip;
+                <span class="spinner-border spinner-border-sm" role="status"></span> Re-analyzing...
             </span>
         </div>
     </div>
-</div>
 
-<!-- ===== TABS ===== -->
-<div class="container-fluid">
-    <ul class="nav nav-tabs" id="analysisTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#execSummary" type="button" role="tab">Executive Summary</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="deepdive-tab" data-bs-toggle="tab" data-bs-target="#deepDive" type="button" role="tab">Deep Dive</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="breakdown-tab" data-bs-toggle="tab" data-bs-target="#mainBreakdown" type="button" role="tab" style="color: #E8701A; font-weight: 600;">Main Breakdown</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="recs-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" style="color: #8B5CF6; font-weight: 600;">Recommendations</button>
-        </li>
-    </ul>
+    <div id="dashboardLoading" class="focus-empty-state">
+        Loading focused analysis...
+    </div>
 
-    <div class="tab-content" id="analysisTabContent">
+    <div id="dashboardError" class="alert alert-danger" style="display:none;"></div>
 
-<!-- =====================================================================
-     TAB 1: EXECUTIVE SUMMARY
-     ===================================================================== -->
-<div class="tab-pane fade show active" id="execSummary" role="tabpanel">
+    <div id="dashboardViews" hidden>
+        <ul class="nav nav-tabs mb-3" id="dashboardTabs">
+            <li class="nav-item">
+                <button type="button" class="nav-link active" data-dashboard-tab="focus">Focus Dashboard</button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link" data-dashboard-tab="brackets">Bracket Performance</button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link" data-dashboard-tab="ab">AB Tests</button>
+            </li>
+        </ul>
 
-    <!-- Row 1: Health Gauge + Breakdown + KPIs -->
-    <div class="row mt-3 g-3">
-        <!-- Health Gauge -->
-        <div class="col-md-3">
-            <div class="analysis-panel text-center" style="padding-top:1.2rem;">
-                <div class="health-gauge" id="healthGauge">
-                    <svg width="160" height="160" viewBox="0 0 160 160">
-                        <circle class="health-gauge-bg" cx="80" cy="80" r="68" />
-                        <circle class="health-gauge-fill" id="gaugeArc" cx="80" cy="80" r="68"
-                            stroke-dasharray="427.3" stroke-dashoffset="427.3" />
-                    </svg>
-                    <div class="health-gauge-center">
-                        <div class="health-gauge-grade" id="gaugeGrade">--</div>
-                        <div class="health-gauge-score" id="gaugeScore">--/100</div>
+        <div id="focusDashboard" class="focus-dashboard">
+        <section class="focus-top-grid">
+            <article class="focus-card focus-card-hero">
+                <div class="focus-card-label">Analysis Scope</div>
+                <div class="focus-hero-row">
+                    <div>
+                        <div id="scopeGrade" class="focus-hero-grade">--</div>
+                        <div id="scopeScore" class="focus-hero-score">Levels In Scope</div>
+                    </div>
+                    <div class="focus-hero-copy">
+                        <h2 id="scopeHeadline">Scope summary</h2>
+                        <p id="scopeDetail" class="focus-card-copy"></p>
+                        <div id="summaryMeta" class="focus-meta-row"></div>
                     </div>
                 </div>
-                <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px; font-weight:600;">GAME HEALTH</div>
-            </div>
-        </div>
+            </article>
 
-        <!-- Health Breakdown Bars -->
-        <div class="col-md-5">
-            <div class="analysis-panel" id="healthBreakdownPanel">
-                <h4 style="font-size:0.92rem; margin-bottom:0.7rem;">Health Breakdown</h4>
-                <div id="healthBreakdownBars"></div>
-            </div>
-        </div>
+            <article class="focus-card">
+                <div class="focus-card-label">Late APS Trend</div>
+                <h3 id="lateTrendTitle" class="focus-card-title">Loading late APS trend...</h3>
+                <p id="lateTrendCopy" class="focus-card-copy"></p>
+                <div id="lateTrendMeta" class="focus-pill-row"></div>
+            </article>
 
-        <!-- KPI Stack -->
-        <div class="col-md-4">
-            <div class="analysis-panel" style="padding:1rem;">
-                <h4 style="font-size:0.92rem; margin-bottom:0.7rem;">Key Metrics</h4>
-                <div class="kpi-row" style="flex-direction:column; gap:6px;" id="kpiStack">
-                    <!-- populated by JS -->
+            <article class="focus-card">
+                <div class="focus-card-label">End Game Loop</div>
+                <h3 id="loopTitle" class="focus-card-title">Waiting for loop scope...</h3>
+                <p id="loopCopy" class="focus-card-copy"></p>
+                <div id="loopMeta" class="focus-pill-row"></div>
+            </article>
+
+            <article class="focus-card">
+                <div class="focus-card-label">Diminishing Returns</div>
+                <h3 id="drTitle" class="focus-card-title">Loading efficiency view...</h3>
+                <p id="drCopy" class="focus-card-copy"></p>
+                <div id="drMeta" class="focus-pill-row"></div>
+            </article>
+        </section>
+
+        <section class="focus-section">
+            <div class="focus-section-header">
+                <div>
+                    <div class="focus-eyebrow">Trend</div>
+                    <h2>Late APS Trend</h2>
+                </div>
+                <p>Bucket the scoped funnel into 50-level windows after onboarding and watch for APS drift and slumps.</p>
+            </div>
+            <div class="focus-chart-shell">
+                <canvas id="lateTrendChart"></canvas>
+            </div>
+            <div class="focus-split focus-split-tight">
+                <div class="focus-panel">
+                    <div class="focus-panel-title">Weak Ranges</div>
+                    <div id="lateTrendIssues" class="focus-list focus-list-compact"></div>
+                </div>
+                <div class="focus-panel">
+                    <div class="focus-panel-title">Window Summary</div>
+                    <div id="lateTrendBuckets" class="focus-list focus-list-compact"></div>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <!-- Row 2: Bracket Distribution + Top Priority Actions -->
-    <div class="row mt-2 g-3">
-        <div class="col-md-6">
-            <div class="analysis-panel">
-                <h4 style="font-size:0.92rem;">Bracket Distribution</h4>
-                <div id="bracketStackedBar" style="margin-top:8px;"></div>
-                <!-- Also a small APS range chart below -->
-                <div style="margin-top:14px;">
-                    <h4 style="font-size:0.88rem;">APS Ranges (Recommended vs Actual)</h4>
-                    <div style="position:relative; height:130px;"><canvas id="apsRangeChart"></canvas></div>
+        <section class="focus-section">
+            <div class="focus-section-header">
+                <div>
+                    <div class="focus-eyebrow">Loop</div>
+                    <h2>End Game Loop Health</h2>
+                </div>
+                <p>Measure the real looping range from the chosen loop start and check whether it softens, hardens, or stays stable.</p>
+            </div>
+            <div class="focus-chart-shell">
+                <canvas id="loopChart"></canvas>
+            </div>
+            <div class="focus-split focus-split-tight">
+                <div class="focus-panel">
+                    <div class="focus-panel-title">Loop Issues</div>
+                    <div id="loopIssues" class="focus-list focus-list-compact"></div>
+                </div>
+                <div class="focus-panel">
+                    <div class="focus-panel-title">Loop Windows</div>
+                    <div id="loopBuckets" class="focus-list focus-list-compact"></div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="analysis-panel">
-                <h4 style="font-size:0.92rem;">Top Priority Actions</h4>
-                <div id="priorityActionsContainer"></div>
+        </section>
+
+        <section class="focus-section">
+            <div class="focus-section-header">
+                <div>
+                    <div class="focus-eyebrow">Efficiency</div>
+                    <h2>Diminishing Returns</h2>
+                </div>
+                <p>Bucket by APS and identify the safe zone, sweet spot, and overstretched range where extra difficulty stops paying off cleanly.</p>
             </div>
+            <div class="focus-chart-shell">
+                <canvas id="drChart"></canvas>
+            </div>
+            <div class="focus-panel">
+                <div class="focus-panel-title">Key Findings</div>
+                <div id="drFindings" class="focus-list"></div>
+            </div>
+            <div class="focus-panel">
+                <div class="focus-panel-title">APS Buckets</div>
+                <div id="drTable"></div>
+            </div>
+        </section>
         </div>
-    </div>
 
-    <!-- Row 3: Bracket Metrics -->
-    <div class="analysis-panel mt-2">
-        <h4 style="font-size:0.92rem;">Bracket Metrics Overview</h4>
-        <div id="bracketMetricsExecContainer" style="overflow-x: auto;"></div>
-    </div>
+        <div id="bracketPerformancePanel" class="focus-dashboard" hidden>
+            <section class="focus-stat-grid">
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Strongest Bracket</div>
+                    <div id="strongestBracketValue" class="focus-stat-value">--</div>
+                    <p id="strongestBracketCopy" class="focus-stat-copy"></p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Weakest Bracket</div>
+                    <div id="weakestBracketValue" class="focus-stat-value">--</div>
+                    <p id="weakestBracketCopy" class="focus-stat-copy"></p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Outliers</div>
+                    <div id="bracketOutlierValue" class="focus-stat-value">--</div>
+                    <p id="bracketOutlierCopy" class="focus-stat-copy"></p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Bracket View</div>
+                    <div id="bracketViewValue" class="focus-stat-value">APS</div>
+                    <p class="focus-stat-copy">Top and bottom levels are grouped against levels in the same real APS band, not the same target tag.</p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Tag Accuracy</div>
+                    <div id="tagAccuracyValue" class="focus-stat-value">--</div>
+                    <p id="tagAccuracyCopy" class="focus-stat-copy"></p>
+                </article>
+            </section>
 
-    <!-- Row 4: Data Context (Maturity + Runway) -->
-    <div class="analysis-panel mt-2">
-        <h4 style="font-size:0.92rem;">Data Context</h4>
-        <div class="row g-3">
-            <div class="col-md-6" id="maturityContainer"></div>
-            <div class="col-md-6" id="runwayContainer"></div>
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Signals</div>
+                        <h2>Bracket Insights</h2>
+                    </div>
+                    <p>See which brackets are healthiest overall, then inspect the levels to study and the levels to fix.</p>
+                </div>
+                <div id="bracketInsights" class="focus-list"></div>
+            </section>
+
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Accuracy</div>
+                        <h2>Difficulty Tag Accuracy</h2>
+                    </div>
+                    <p>Target tags are checked against adaptive APS quintiles, so one extreme high-APS tail does not stretch the easier bands for the whole game.</p>
+                </div>
+                <div id="difficultyTagBands" class="focus-pill-row mb-3"></div>
+                <div id="difficultyTagAccuracy" class="focus-bracket-grid"></div>
+            </section>
+
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Performance</div>
+                        <h2>Top / Bottom Per Bracket</h2>
+                    </div>
+                    <p>Each bracket card shows the best and worst levels inside the same APS band, weighted toward revenue strength with churn acting like a tax.</p>
+                </div>
+                <div id="bracketCards" class="focus-bracket-grid"></div>
+            </section>
         </div>
-    </div>
 
-    <!-- Row 5: Playtime Economics — Churn vs Monetization per 120 minutes (2 hours) -->
-    <div class="analysis-panel mt-2" id="playtimeEconPanel" style="display:none;">
-        <h4 style="font-size:0.92rem;">
-            Playtime Economics
-            <span style="font-size:0.72rem; color:#888; font-weight:400; margin-left:6px;">per-minute rates · 2-hour observation window</span>
-        </h4>
-        <div id="playtimeEconContent"></div>
-    </div>
+        <div id="abTestPanel" class="focus-dashboard" hidden>
+            <section class="focus-stat-grid">
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Experiment Winner</div>
+                    <div id="abWinnerValue" class="focus-stat-value">--</div>
+                    <p id="abWinnerCopy" class="focus-stat-copy"></p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Recommendation</div>
+                    <div id="abRecommendationValue" class="focus-stat-value">--</div>
+                    <p id="abRecommendationCopy" class="focus-stat-copy"></p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Revenue Delta</div>
+                    <div id="abRevenueDeltaValue" class="focus-stat-value">--</div>
+                    <p id="abRevenueDeltaCopy" class="focus-stat-copy"></p>
+                </article>
+                <article class="focus-stat-card">
+                    <div class="focus-card-label">Churn Delta</div>
+                    <div id="abChurnDeltaValue" class="focus-stat-value">--</div>
+                    <p id="abChurnDeltaCopy" class="focus-stat-copy"></p>
+                </article>
+            </section>
 
-</div>
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Summary</div>
+                        <h2>AB Test Findings</h2>
+                    </div>
+                    <p>Compare control and variant on balanced funnel value, not just on one metric in isolation.</p>
+                </div>
+                <div id="abFindings" class="focus-list"></div>
+            </section>
 
-<!-- =====================================================================
-     TAB 2: DEEP DIVE
-     ===================================================================== -->
-<div class="tab-pane fade" id="deepDive" role="tabpanel">
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Funnel</div>
+                        <h2>Level Funnel Comparison</h2>
+                    </div>
+                    <p>Track where the cohorts start diverging across the level funnel.</p>
+                </div>
+                <div class="focus-chart-shell">
+                    <canvas id="abFunnelChart"></canvas>
+                </div>
+            </section>
 
-    <!-- Section A: Funnel & Retention -->
-    <div class="dd-section mt-3">
-        <div class="dd-section-header" onclick="toggleDDSection(this)">
-            <h4>Funnel & Retention</h4>
-            <span class="dd-toggle">&#9660;</span>
-        </div>
-        <div class="dd-section-body">
-            <!-- Pacing summary cards -->
-            <div class="row g-3 mt-1">
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="ddPacingScore">--</div>
-                        <div class="kpi-label">Pacing Score</div>
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Bracket</div>
+                        <h2>Bracket Breakdown</h2>
+                    </div>
+                    <p>See where control or variant is stronger by intended difficulty role.</p>
+                </div>
+                <div id="abBracketCards" class="focus-bracket-grid"></div>
+            </section>
+
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Swings</div>
+                        <h2>Top Level Movers</h2>
+                    </div>
+                    <p>Highlight the levels where the variant helps most and hurts most once revenue and retention are balanced together.</p>
+                </div>
+                <div class="focus-split focus-split-tight">
+                    <div class="focus-panel">
+                        <div class="focus-panel-title">Best Variant Levels</div>
+                        <div id="abPositiveLevels" class="focus-list focus-list-compact"></div>
+                    </div>
+                    <div class="focus-panel">
+                        <div class="focus-panel-title">Worst Variant Levels</div>
+                        <div id="abNegativeLevels" class="focus-list focus-list-compact"></div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="ddCritDrops">--</div>
-                        <div class="kpi-label">Critical Drops</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="ddHardStretches">--</div>
-                        <div class="kpi-label">Hard Stretches</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="ddRecoveryGaps">--</div>
-                        <div class="kpi-label">Recovery Gaps</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Funnel Curve -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.92rem;">Player Funnel Curve</h4>
-                <div style="position:relative; height:220px;"><canvas id="funnelCurveChart"></canvas></div>
-            </div>
-
-            <!-- Drop-off: Actual vs Expected Baseline -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.92rem;">Drop-off: Actual vs Expected Baseline
-                    <span style="font-size:0.72rem; color:#888; font-weight:400; margin-left:6px;">Phase-adjusted — early game de-weighted</span>
-                </h4>
-                <div style="position:relative; height:200px;"><canvas id="dropoffVsAvgChart"></canvas></div>
-            </div>
-
-            <!-- Phase Summary -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.92rem;">Funnel Phase Breakdown</h4>
-                <div id="phaseSummaryContainer"></div>
-            </div>
-
-            <!-- Funnel insights (inline) -->
-            <div id="funnelInsightsInline" style="margin-top:10px;"></div>
-
-            <!-- Steep Drops -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.88rem;">Steep Drop-off Levels <span id="steepDropCount" class="flag-count-badge"></span></h4>
-                <div id="steepDropsContainer" style="max-height: 280px; overflow-y: auto;"></div>
-            </div>
-
-            <!-- Problem Areas: Spikes + High-Loss Zones -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.88rem;">Problem Areas <span id="dropoffSpikeCount" class="flag-count-badge"></span></h4>
-                <div id="problemAreasContainer" style="max-height: 400px; overflow-y: auto;"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Section B: Level Performance -->
-    <div class="dd-section">
-        <div class="dd-section-header" onclick="toggleDDSection(this)">
-            <h4>Level Performance</h4>
-            <span class="dd-toggle">&#9660;</span>
-        </div>
-        <div class="dd-section-body">
-            <!-- Score Distribution Chart -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.92rem;">Performance Score Distribution</h4>
-                <div style="position:relative; height:200px;"><canvas id="scoreDistChart"></canvas></div>
-            </div>
-
-            <!-- Ranking insights (inline) -->
-            <div id="rankingInsightsInline" style="margin-top:10px;"></div>
-
-            <!-- Outliers -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.88rem;">Statistical Outliers <span id="outlierCount" class="flag-count-badge"></span></h4>
-                <div id="outliersContainer" style="max-height: 250px; overflow-y: auto;"></div>
-            </div>
-
-            <!-- Full Ranking Table (collapsed by default) -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.88rem; cursor:pointer;" onclick="toggleFullRanking()">
-                    Full Level Ranking <span id="rankingToggleIcon" style="font-size:0.75rem; color:#888;">&#9654; Click to expand</span>
-                </h4>
-                <div id="fullRankingWrapper" style="display:none;">
-                    <div style="margin-bottom:0.5rem;">
-                        <select id="rankingBracketFilter" class="form-select form-select-sm" style="width:auto; display:inline-block; font-size:0.82rem;">
-                            <option value="all">All Brackets</option>
-                            <option value="Easy">Easy</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Hard">Hard</option>
-                            <option value="Super Hard">Super Hard</option>
-                            <option value="Wall">Wall</option>
-                        </select>
-                        <span id="rankingFilterCount" class="flag-count-badge"></span>
-                    </div>
-                    <div id="fullRankingContainer" style="max-height: 400px; overflow-y: auto;"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Section C: Difficulty & Monetization -->
-    <div class="dd-section">
-        <div class="dd-section-header" onclick="toggleDDSection(this)">
-            <h4>Difficulty & Monetization</h4>
-            <span class="dd-toggle">&#9660;</span>
-        </div>
-        <div class="dd-section-body">
-            <!-- Scatter Plots -->
-            <div class="row mt-2 g-3">
-                <div class="col-md-4">
-                    <h4 style="font-size:0.85rem;">APS vs Churn</h4>
-                    <div style="position:relative; height:200px;"><canvas id="scatterApsChurn"></canvas></div>
-                </div>
-                <div class="col-md-4">
-                    <h4 style="font-size:0.85rem;">APS vs Revenue</h4>
-                    <div style="position:relative; height:200px;"><canvas id="scatterApsRevenue"></canvas></div>
-                </div>
-                <div class="col-md-4">
-                    <h4 style="font-size:0.85rem;">Churn vs Revenue</h4>
-                    <div style="position:relative; height:200px;"><canvas id="scatterChurnRevenue"></canvas></div>
-                </div>
-            </div>
-
-            <!-- Optimal APS Ranges -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.88rem;">Optimal APS Ranges</h4>
-                <div id="optimalRangesContainer"></div>
-            </div>
-
-            <!-- Diminishing Returns -->
-            <div style="margin-top:14px;">
-                <h4 style="font-size:0.92rem;">Monetization Inflection & Diminishing Returns</h4>
-                <div id="diminishingReturnsContainer"></div>
-            </div>
-
-            <!-- Correlation insights (inline) -->
-            <div id="correlationInsightsInline" style="margin-top:10px;"></div>
+            </section>
         </div>
     </div>
 </div>
-
-<!-- =====================================================================
-     TAB 3: RECOMMENDATIONS
-     ===================================================================== -->
-<div class="tab-pane fade" id="recommendations" role="tabpanel">
-
-    <!-- Fix vs Replicate -->
-    <div class="rec-panel mt-3" id="recFixReplicate">
-        <div class="rec-header">
-            <div class="action-icon action-icon-crit">&#128295;</div>
-            <div>
-                <h4>Fix vs. Replicate Levels</h4>
-                <p class="rec-subtitle">Which levels need redesign and which to use as templates</p>
-            </div>
-        </div>
-        <div id="fixReplicateContainer"></div>
-    </div>
-
-    <!-- Difficulty & Progression Fixes (unified: Smoothing + Curve + Reorder) -->
-    <div class="rec-panel mt-3" id="recDifficultyPacing">
-        <div class="rec-header">
-            <div class="action-icon action-icon-warn">&#128200;</div>
-            <div>
-                <h4>Difficulty & Progression Fixes</h4>
-                <p class="rec-subtitle">Where the difficulty curve breaks and what to fix — sorted by impact</p>
-            </div>
-        </div>
-        <!-- APS Curve Chart: actual vs ideal -->
-        <div style="height: 220px; margin-bottom: 16px;">
-            <canvas id="apsCurveChart"></canvas>
-        </div>
-        <!-- Bracket APS Targets (compact collapsible) -->
-        <div id="bracketTargetsRef" style="margin-bottom: 14px;"></div>
-        <!-- Unified Action List -->
-        <div id="unifiedActionsContainer"></div>
-    </div>
-
-    <!-- Best Mechanics -->
-    <div class="rec-panel mt-3" id="recMechanics">
-        <div class="rec-header">
-            <div class="action-icon action-icon-info">&#128736;</div>
-            <div>
-                <h4>Best Mechanics & Parameters</h4>
-                <p class="rec-subtitle">Which design elements correlate with best performance</p>
-            </div>
-        </div>
-        <div id="mechanicsContainer"></div>
-    </div>
-</div>
-
-<!-- =====================================================================
-     TAB 4: MAIN BREAKDOWN
-     ===================================================================== -->
-<div class="tab-pane fade" id="mainBreakdown" role="tabpanel">
-    <div class="row mt-3 g-3">
-        <div class="col-12">
-            <div class="analysis-panel" id="mainBreakdownPanel" style="display:none;">
-                <h6 style="font-weight:700;color:#E8701A;margin-bottom:4px;">Main Breakdown</h6>
-                <p class="text-muted" style="font-size:0.78rem;margin-bottom:16px;">Pacing formula compliance & difficulty mismatch detection</p>
-                <div id="mainBreakdownContent"></div>
-            </div>
-            <div id="mainBreakdownLoading" class="text-center py-4 text-muted">
-                <span class="spinner-border spinner-border-sm"></span> Loading main breakdown&hellip;
-            </div>
-        </div>
-    </div>
-</div>
-
-    </div><!-- /tab-content -->
-</div><!-- /container-fluid -->
-{% endblock %}
-
-{% block scripts %}
-<script>
-// =========================================================================
-// Constants & Utilities
-// =========================================================================
-const BRACKET_COLORS = {
-    'Easy': '#5DAA68', 'Medium': '#5B8DB8', 'Hard': '#E8A838',
-    'Super Hard': '#D45B5B', 'Wall': '#8B5CF6',
-};
-const BRACKET_ORDER = ['Easy', 'Medium', 'Hard', 'Super Hard', 'Wall'];
-const GRADE_COLORS = { A: '#5DAA68', B: '#5B8DB8', C: '#E8A838', D: '#D45B5B', F: '#8B0000' };
-
-function safeNewChart(canvasEl, config) {
-    if (typeof canvasEl === 'string') canvasEl = document.getElementById(canvasEl);
-    if (!canvasEl) return null;
-    const existing = Chart.getChart(canvasEl);
-    if (existing) existing.destroy();
-    return new Chart(canvasEl, config);
-}
-
-function scorePill(val) {
-    const cls = val >= 70 ? 'score-pill-a' : val >= 55 ? 'score-pill-b' : val >= 40 ? 'score-pill-c' : val >= 25 ? 'score-pill-d' : 'score-pill-f';
-    return '<span class="score-pill ' + cls + '">' + val + '/100</span>';
-}
-
-function pctFmt(v) { return v != null ? (v * 100).toFixed(2) + '%' : 'N/A'; }
-
-function renderInlineInsights(container, insights) {
-    if (!insights || insights.length === 0) { container.innerHTML = ''; return; }
-    let html = '';
-    insights.forEach(i => {
-        html += '<div class="inline-callout inline-callout-info"><span class="inline-callout-icon">&#128161;</span>' + i + '</div>';
-    });
-    container.innerHTML = html;
-}
-
-function toggleDDSection(header) {
-    const body = header.nextElementSibling;
-    header.classList.toggle('collapsed');
-    body.classList.toggle('collapsed');
-}
-
-// =========================================================================
-// Level Range Filter
-// =========================================================================
-let _fullLevelMin = null, _fullLevelMax = null, _currentFilter = null;
-
-function initLevelRange() {
-    fetch('/api/data/level-range').then(r => r.json()).then(data => {
-        if (data.error) return;
-        _fullLevelMin = data.full_min; _fullLevelMax = data.full_max;
-        _currentFilter = data.current_filter;
-        const minI = document.getElementById('levelMin'), maxI = document.getElementById('levelMax');
-        if (minI) { minI.placeholder = data.full_min; minI.min = data.full_min; minI.max = data.full_max; }
-        if (maxI) { maxI.placeholder = data.full_max; maxI.min = data.full_min; maxI.max = data.full_max; }
-        if (_currentFilter) { minI.value = _currentFilter.min; maxI.value = _currentFilter.max; updateRangeUI(true); }
-        else { updateRangeUI(false); }
-    });
-}
-function updateRangeUI(isFiltered) {
-    const resetBtn = document.getElementById('resetRangeBtn'), info = document.getElementById('rangeInfo');
-    if (isFiltered && _currentFilter) {
-        resetBtn.style.display = '';
-        info.innerHTML = '<span class="active-filter-badge">Filtered: L' + _currentFilter.min + ' \u2013 L' + _currentFilter.max + '</span> <span style="margin-left:6px;">(Full: ' + _fullLevelMin + ' \u2013 ' + _fullLevelMax + ')</span>';
-    } else { resetBtn.style.display = 'none'; info.textContent = 'Full range: ' + _fullLevelMin + ' \u2013 ' + _fullLevelMax; }
-}
-function applyLevelRange() {
-    const minVal = document.getElementById('levelMin').value, maxVal = document.getElementById('levelMax').value;
-    if (!minVal && !maxVal) return;
-    const payload = { level_min: minVal ? parseInt(minVal) : _fullLevelMin, level_max: maxVal ? parseInt(maxVal) : _fullLevelMax };
-    const spinner = document.getElementById('rangeSpinner'), btn = document.getElementById('applyRangeBtn');
-    spinner.style.display = ''; btn.disabled = true;
-    fetch('/api/reanalyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    .then(r => r.json()).then(data => {
-        spinner.style.display = 'none'; btn.disabled = false;
-        if (data.error) { alert(data.error); return; }
-        _currentFilter = data.level_range; updateRangeUI(!!_currentFilter); reloadAllData();
-    }).catch(() => { spinner.style.display = 'none'; btn.disabled = false; });
-}
-function resetLevelRange() {
-    document.getElementById('levelMin').value = ''; document.getElementById('levelMax').value = '';
-    const spinner = document.getElementById('rangeSpinner'), btn = document.getElementById('applyRangeBtn');
-    spinner.style.display = ''; btn.disabled = true;
-    fetch('/api/reanalyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-    .then(r => r.json()).then(data => {
-        spinner.style.display = 'none'; btn.disabled = false;
-        if (data.error) { alert(data.error); return; }
-        _currentFilter = null; updateRangeUI(false); reloadAllData();
-    }).catch(() => { spinner.style.display = 'none'; btn.disabled = false; });
-}
-
-function reloadAllData() {
-    loadExecSummary();
-    loadDeepDiveFunnel();
-    loadDeepDivePerformance();
-    loadDeepDiveMonetization();
-    loadRecommendations();
-    loadMainBreakdown();
-}
-
-// =========================================================================
-// TAB 1: Executive Summary
-// =========================================================================
-function loadExecSummary() {
-    // We need overview, aps-ranges, recommendations, funnel, and correlation for exec summary
-    Promise.all([
-        fetch('/api/data/overview').then(r => r.json()),
-        fetch('/api/data/aps-ranges').then(r => r.json()),
-        fetch('/api/data/recommendations').then(r => r.json()),
-        fetch('/api/data/funnel').then(r => r.json()),
-        fetch('/api/data/correlation').then(r => r.json()),
-    ]).then(([overview, aps, recs, funnel, corr]) => {
-        const s = overview.summary || {};
-        const h = recs.game_health || {};
-
-        // --- Health Gauge ---
-        const score = h.score || 0;
-        const grade = h.grade || '--';
-        const color = GRADE_COLORS[grade] || '#999';
-        const circumference = 2 * Math.PI * 68; // ~427.3
-        const offset = circumference * (1 - score / 100);
-        const arc = document.getElementById('gaugeArc');
-        if (arc) { arc.style.stroke = color; arc.setAttribute('stroke-dashoffset', offset); }
-        const gradeEl = document.getElementById('gaugeGrade');
-        if (gradeEl) { gradeEl.textContent = grade; gradeEl.style.color = color; }
-        const scoreEl = document.getElementById('gaugeScore');
-        if (scoreEl) scoreEl.textContent = score + '/100';
-
-        // --- Health Breakdown Bars ---
-        const bbEl = document.getElementById('healthBreakdownBars');
-        if (bbEl && h.breakdown) {
-            const dimLabels = {retention:'Retention', pacing:'Pacing', dropoff:'Drop-off', bracket_balance:'Bracket Balance', monetization:'Monetization'};
-            let html = '';
-            // Sort by weight descending
-            const dims = Object.entries(dimLabels).sort((a,b) => (h.weights[b[0]]||0) - (h.weights[a[0]]||0));
-            dims.forEach(([key, label]) => {
-                const val = h.breakdown[key] || 0;
-                const w = ((h.weights[key] || 0) * 100).toFixed(0);
-                const col = val >= 70 ? '#5DAA68' : val >= 50 ? '#E8A838' : '#D45B5B';
-                html += '<div style="margin-bottom:0.5rem;">'
-                    + '<div class="d-flex justify-content-between" style="font-size:0.82rem;">'
-                    + '<span>' + label + ' <span style="color:#999;font-size:0.72rem;">(' + w + '%)</span></span>'
-                    + '<span style="font-weight:700;color:' + col + ';">' + val + '</span></div>'
-                    + '<div class="rec-score-bar"><div class="rec-score-fill" style="width:' + val + '%;background:' + col + ';"></div></div>'
-                    + '</div>';
-            });
-            bbEl.innerHTML = html;
-        }
-
-        // --- KPI Stack ---
-        const kpiEl = document.getElementById('kpiStack');
-        if (kpiEl) {
-            let html = '';
-            const kpis = [
-                { label: 'LEVELS', value: s.total_levels || '--', sub: s.level_range || '' },
-                { label: 'AVG APS', value: s.avg_aps || '--', sub: '' },
-                { label: 'AVG CHURN', value: s.avg_combined_churn != null ? (s.avg_combined_churn * 100).toFixed(2) + '%' : '--', sub: s.has_immature_data ? (s.churn_windows_available || []).join('+') + ' only' : '' },
-                { label: 'COMPLETION', value: s.avg_completion != null ? (s.avg_completion * 100).toFixed(1) + '%' : '--', sub: '' },
-            ];
-            kpis.forEach(k => {
-                html += '<div class="d-flex justify-content-between align-items-center" style="padding:4px 0;border-bottom:1px solid #F0EEEB;font-size:0.82rem;">'
-                    + '<span style="color:var(--text-muted);font-weight:600;font-size:0.72rem;">' + k.label + '</span>'
-                    + '<span><strong>' + k.value + '</strong>'
-                    + (k.sub ? ' <span style="font-size:0.68rem;color:var(--warning);">' + k.sub + '</span>' : '')
-                    + '</span></div>';
-            });
-            kpiEl.innerHTML = html;
-        }
-
-        // --- Bracket Stacked Bar ---
-        const bsEl = document.getElementById('bracketStackedBar');
-        if (bsEl && overview.bracket_distribution) {
-            const total = overview.bracket_distribution.reduce((s,d) => s + d.count, 0);
-            let barHtml = '<div class="bracket-stacked-bar">';
-            let legendHtml = '<div class="bracket-stacked-legend">';
-            overview.bracket_distribution.forEach(d => {
-                const pct = (d.count / total * 100);
-                const color = BRACKET_COLORS[d.bracket] || '#999';
-                barHtml += '<div class="bracket-stacked-segment" style="width:' + pct.toFixed(1) + '%;background:' + color + ';">'
-                    + (pct > 6 ? '<span>' + d.count + '</span>' : '') + '</div>';
-                legendHtml += '<div class="bracket-stacked-legend-item">'
-                    + '<div class="bracket-stacked-legend-dot" style="background:' + color + ';"></div>'
-                    + d.bracket + ' (' + pct.toFixed(0) + '%)</div>';
-            });
-            barHtml += '</div>';
-            legendHtml += '</div>';
-            bsEl.innerHTML = barHtml + legendHtml;
-        }
-
-        // --- APS Range Chart ---
-        if (aps.ranges) {
-            const rangeCtx = document.getElementById('apsRangeChart');
-            if (rangeCtx) {
-                const labels = aps.ranges.map(d => d.bracket);
-                const colors = labels.map(l => BRACKET_COLORS[l] || '#999');
-                safeNewChart(rangeCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { label: 'Recommended', data: aps.ranges.map(d => [d.recommended_min, d.recommended_max]), backgroundColor: colors, borderRadius: 4, barPercentage: 0.5 },
-                            { label: 'Actual', data: aps.ranges.map(d => [d.aps_min, d.aps_max]), backgroundColor: colors.map(c => c + '33'), borderColor: colors.map(c => c + '88'), borderWidth: 1, borderRadius: 4, barPercentage: 0.5 },
-                        ]
-                    },
-                    options: {
-                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { position: 'top', labels: { font: { size: 10 } } }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.raw[0] + ' - ' + ctx.raw[1] } } },
-                        scales: { x: { title: { display: true, text: 'APS', font: { size: 10 } }, grid: { color: '#F0EEEB' } }, y: { grid: { display: false } } }
-                    }
-                });
-            }
-        }
-
-        // --- Priority Actions ---
-        const paEl = document.getElementById('priorityActionsContainer');
-        if (paEl) {
-            let actions = [];
-            // From game health key_actions
-            if (h.key_actions) {
-                h.key_actions.forEach(a => {
-                    actions.push({ text: '<strong>' + a.dimension + '</strong>: ' + a.action, score: a.score, severity: a.score < 40 ? 'crit' : 'warn' });
-                });
-            }
-            // From APS insights (flagged brackets)
-            if (aps.health) {
-                aps.health.filter(b => b.status === 'critical').forEach(b => {
-                    actions.push({ text: '<strong>' + b.bracket + '</strong>: Critical bracket health', score: b.goal_score, severity: 'crit' });
-                });
-            }
-            // Cap at 6
-            actions = actions.slice(0, 6);
-            if (actions.length === 0) {
-                paEl.innerHTML = '<div class="inline-callout inline-callout-success"><span class="inline-callout-icon">&#9989;</span>No critical actions detected. Game is in good health.</div>';
-            } else {
-                let html = '';
-                actions.forEach(a => {
-                    const iconCls = a.severity === 'crit' ? 'action-icon-crit' : 'action-icon-warn';
-                    const icon = a.severity === 'crit' ? '&#9888;' : '&#128161;';
-                    html += '<div class="action-item">'
-                        + '<div class="action-icon ' + iconCls + '">' + icon + '</div>'
-                        + '<div>' + a.text + ' ' + scorePill(a.score) + '</div>'
-                        + '</div>';
-                });
-                paEl.innerHTML = html;
-            }
-        }
-
-        // --- Data Maturity ---
-        const matEl = document.getElementById('maturityContainer');
-        if (matEl) {
-            if (!s.has_immature_data) {
-                matEl.innerHTML = '<div class="inline-callout inline-callout-success"><span class="inline-callout-icon">&#9989;</span>Full data maturity. All churn windows (session, D3, D7) available for all levels.</div>';
-            } else {
-                const pFull = s.pct_full_maturity || 0;
-                const pPartial = s.pct_partial_maturity || 0;
-                const pMin = s.pct_minimal_maturity || 0;
-                let html = '<div class="maturity-bar" style="margin-bottom:8px;">'
-                    + '<span style="font-weight:600;">Data quality:</span>'
-                    + '<div class="maturity-bar-track">'
-                    + '<div class="maturity-bar-full" style="width:' + pFull + '%;"></div>'
-                    + '<div class="maturity-bar-partial" style="width:' + pPartial + '%;"></div>'
-                    + '<div class="maturity-bar-minimal" style="width:' + pMin + '%;"></div>'
-                    + '</div></div>';
-                html += '<div style="display:flex;gap:16px;font-size:0.78rem;margin-bottom:6px;">'
-                    + '<span style="color:var(--success);">&#9632; Full: ' + pFull + '%</span>'
-                    + '<span style="color:var(--warning);">&#9632; Partial: ' + pPartial + '%</span>'
-                    + '<span style="color:var(--danger);">&#9632; Minimal: ' + pMin + '%</span></div>';
-                html += '<div style="font-size:0.82rem;color:var(--text-muted);">' + (s.churn_maturity_detail || '') + '</div>';
-                html += '<div style="font-size:0.78rem;color:var(--text-light);margin-top:4px;">Windows: ' + (s.churn_windows_available || []).join(' + ') + '</div>';
-                matEl.innerHTML = html;
-            }
-        }
-
-        // --- Content Runway ---
-        const crEl = document.getElementById('runwayContainer');
-        if (crEl) {
-            const dr = corr.diminishing_returns || {};
-            if (dr.content_runway) {
-                const cr = dr.content_runway;
-                const total = cr.levels_to_1pct || 0;
-                const current = s.total_levels || 0;
-                const pctUsed = total > 0 ? Math.min(current / total * 100, 100) : 100;
-                let html = '<div class="runway-bar" style="margin-bottom:8px;">'
-                    + '<div class="runway-fill" style="width:' + pctUsed.toFixed(0) + '%;"></div>'
-                    + '</div>';
-                html += '<div class="d-flex justify-content-between" style="font-size:0.82rem;">'
-                    + '<span>Current: <strong>' + current + '</strong> levels</span>'
-                    + '<span>Est. to 1% retention: <strong>~' + total + '</strong> more levels</span></div>';
-                html += '<div style="font-size:0.78rem;color:var(--text-light);margin-top:4px;">'
-                    + 'Currently at ' + cr.current_retention + '% retention, losing ~' + cr.loss_per_50_levels + 'pp per 50 levels. '
-                    + '~' + cr.zones_of_50_to_1pct + ' zones of 50 remaining.</div>';
-                crEl.innerHTML = html;
-            } else {
-                crEl.innerHTML = '<div class="inline-callout inline-callout-info"><span class="inline-callout-icon">&#128202;</span>Insufficient data to estimate content runway.</div>';
-            }
-        }
-
-        // --- Bracket Metrics (moved from Deep Dive) ---
-        const bmExecEl = document.getElementById('bracketMetricsExecContainer');
-        if (bmExecEl && corr.bracket_metrics) {
-            let html = '<table class="table table-sm health-table"><thead><tr><th>Bracket</th><th>Lvls</th><th>APS</th><th>Churn</th><th>Comp</th><th>Rev</th><th>IAP%</th><th>EGP%</th></tr></thead><tbody>';
-            corr.bracket_metrics.forEach(b => {
-                html += '<tr><td><strong>' + b.bracket + '</strong></td><td>' + b.count + '</td><td>' + b.avg_aps + '</td><td>' + (b.avg_churn?(b.avg_churn*100).toFixed(2)+'%':'--') + '</td><td>' + (b.avg_completion?(b.avg_completion*100).toFixed(1)+'%':'--') + '</td><td>' + (b.avg_revenue?b.avg_revenue.toFixed(3):'--') + '</td><td>' + (b.avg_iap_pct?(b.avg_iap_pct*100).toFixed(2)+'%':'--') + '</td><td>' + (b.avg_egp_pct?(b.avg_egp_pct*100).toFixed(2)+'%':'--') + '</td></tr>';
-            });
-            html += '</tbody></table>'; bmExecEl.innerHTML = html;
-        }
-
-        // --- Playtime Economics ---
-        renderPlaytimeEconomics(recs.playtime_economics);
-
-    }).catch(err => console.error('Exec summary load error:', err));
-}
-
-// =========================================================================
-// Playtime Economics renderer
-// =========================================================================
-function renderPlaytimeEconomics(pe) {
-    const panel = document.getElementById('playtimeEconPanel');
-    const container = document.getElementById('playtimeEconContent');
-    if (!panel || !container) return;
-    if (!pe || !pe.available) { panel.style.display = 'none'; return; }
-    panel.style.display = '';
-
-    const f  = pe.funnel;
-    const ob = pe.onboarding;
-    const cl = pe.core_loop;
-
-    function scoreColor(s) {
-        if (s >= 80) return '#27ae60';
-        if (s >= 60) return '#2980b9';
-        if (s >= 40) return '#e67e22';
-        return '#D45B5B';
-    }
-    function scoreLabel(s) {
-        if (s >= 80) return 'Excellent';
-        if (s >= 60) return 'Good';
-        if (s >= 40) return 'Below Avg';
-        return 'Poor';
-    }
-    function scoreBar(label, score, detail) {
-        const col = scoreColor(score);
-        return '<div style="margin-bottom:10px;">'
-            + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">'
-            + '<span style="font-size:0.82rem;font-weight:600;color:#333;">' + label + '</span>'
-            + '<span style="font-size:0.78rem;font-weight:700;color:' + col + ';">' + score + '/100 \u2014 ' + scoreLabel(score) + '</span>'
-            + '</div>'
-            + '<div style="background:#f0eeeb;border-radius:6px;height:8px;">'
-            + '<div style="background:' + col + ';height:100%;border-radius:6px;width:' + score + '%;transition:width 0.5s;"></div>'
-            + '</div>'
-            + '<div style="font-size:0.72rem;color:#888;margin-top:2px;">' + detail + '</div>'
-            + '</div>';
-    }
-
-    let html = '';
-
-    // Funnel context strip
-    const avgMinPerLevel = f.total_playtime_sec ? (f.total_playtime_sec / f.total_levels / 60).toFixed(2) : '—';
-    html += '<div style="font-size:0.75rem;color:#999;margin-bottom:14px;">'
-        + f.total_levels + ' total levels \u00b7 '
-        + f.total_playtime_min.toFixed(1) + ' real min cumulative playtime \u00b7 '
-        + 'avg ' + avgMinPerLevel + ' min/level \u00b7 '
-        + 'Onboarding = L1\u2013' + ob.last_level + ' (' + ob.levels + ' levels) \u00b7 '
-        + 'Core loop = L' + (ob.last_level + 1) + '+ (2-hr window, per-minute rates)'
-        + '</div>';
-
-    // ── SECTION 1: ONBOARDING ─────────────────────────────────────────────
-    html += '<div style="border-left:3px solid #5B8DB8;padding-left:12px;margin-bottom:20px;">';
-    html += '<div style="font-size:0.85rem;font-weight:700;color:#3A7CA5;margin-bottom:10px;">'
-        + '\ud83c\udfae Onboarding  \u2014  L1\u2013' + ob.last_level
-        + '  \u00b7  ' + ob.levels + ' levels  \u00b7  ' + ob.total_min.toFixed(1) + ' min'
-        + '</div>';
-
-    html += '<div class="row g-3">';
-
-    // Left col: survival + smoothness score bars
-    html += '<div class="col-md-6">';
-    html += '<div style="border:1px solid #dce8f0;border-radius:8px;padding:12px 14px;background:#f6fafd;">';
-    html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:10px;">Onboarding Scores</div>';
-
-    html += scoreBar('Onboarding Survival', ob.survival_score,
-        ob.survival_pct + '% of players reach L' + ob.last_level
-        + ' \u2014 ' + ob.churn_pct.toFixed(1) + '% lost during onboarding (higher is better)');
-
-    html += scoreBar('Smoothness Index', ob.smoothness_score,
-        'Churn variance (CV) = ' + ob.cv_churn.toFixed(2)
-        + ' \u2014 avg ' + ob.mean_churn_pct.toFixed(2) + '%/level \u2014 '
-        + ob.spike_count + ' spike' + (ob.spike_count !== 1 ? 's' : '') + ' (\u22652\u00d7 mean) (lower CV is better)');
-
-    // Worst wall callout
-    const wallColor = ob.worst_wall_pct > 15 ? '#D45B5B' : ob.worst_wall_pct > 8 ? '#e67e22' : '#666';
-    html += '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;background:' + (ob.worst_wall_pct > 8 ? '#fff3f0' : '#f8f8f8') + ';font-size:0.76rem;color:' + wallColor + ';font-weight:600;">'
-        + '\u26a0\ufe0f Worst wall: L' + ob.worst_wall_level + ' \u2014 ' + ob.worst_wall_pct.toFixed(1) + '% single-level churn'
-        + '</div>';
-
-    // First monetisation touch
-    if (ob.first_monet_level != null) {
-        const monetInOb = ob.first_monet_level <= ob.last_level;
-        html += '<div style="margin-top:5px;font-size:0.76rem;color:' + (monetInOb ? '#27ae60' : '#e67e22') + ';">'
-            + (monetInOb ? '\u2705' : '\u23f3') + ' First monetisation touch: L' + ob.first_monet_level
-            + (monetInOb ? ' (within onboarding)' : ' (after onboarding ends)')
-            + '</div>';
-    }
-
-    html += '</div></div>';
-
-    // Right col: per-level churn sparkline
-    html += '<div class="col-md-6">';
-    html += '<div style="border:1px solid #dce8f0;border-radius:8px;padding:12px 14px;background:#f6fafd;">';
-    html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:8px;">Per-Level Churn During Onboarding</div>';
-    html += '<div style="position:relative;height:130px;"><canvas id="obChurnBar"></canvas></div>';
-    html += '<div style="font-size:0.70rem;color:#aaa;margin-top:4px;">'
-        + '% players lost per level \u00b7 red = spike (>2\u00d7 avg) \u00b7 orange = elevated \u00b7 avg '
-        + ob.avg_sec_per_level.toFixed(0) + 's/level</div>';
-    html += '</div></div>';
-
-    html += '</div>'; // close row
-    html += '</div>'; // close onboarding section
-
-    // ── SECTION 2: CORE LOOP ──────────────────────────────────────────────
-    html += '<div style="border-left:3px solid #8B5CF6;padding-left:12px;">';
-    html += '<div style="font-size:0.85rem;font-weight:700;color:#6D3FC7;margin-bottom:10px;">'
-        + '\u26a1 Core Loop  \u2014  L' + (ob.last_level + 1) + '+  \u00b7  2-hour observation window  \u00b7  per-minute rates'
-        + '</div>';
-
-    if (!cl || !cl.available) {
-        html += '<div style="font-size:0.82rem;color:#999;padding:8px 0;">'
-            + (cl && cl.reason ? cl.reason : 'Insufficient levels beyond onboarding for core-loop analysis.')
-            + '</div>';
-    } else {
-        const c = cl.churn;
-        const m = cl.monetization;
-        const r = cl.revenue;
-        const e = cl.efficiency;
-        const wf = cl.funnel;
-
-        html += '<div style="font-size:0.75rem;color:#999;margin-bottom:10px;">'
-            + wf.window_levels + ' levels in window \u00b7 '
-            + wf.window_min.toFixed(1) + ' min \u00b7 '
-            + 'avg ' + wf.avg_min_per_level.toFixed(2) + ' min/level \u00b7 '
-            + 'Churn = %/min \u00b7 Monet = IAP users %/min \u00b7 Revenue = $/user/min'
-            + '</div>';
-
-        html += '<div class="row g-3">';
-
-        // Left col: individual scores
-        html += '<div class="col-md-6">';
-        html += '<div style="border:1px solid #e8e5e0;border-radius:8px;padding:12px 14px;background:#fafaf8;">';
-        html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:10px;">Core Loop Scores</div>';
-
-        html += scoreBar('Churn', c.score,
-            c.churn_per_min.toFixed(3) + '% churn per minute'
-            + ' \u2014 ' + c.total_churn_pct + '% lost over '
-            + c.window_min.toFixed(0) + ' min (' + wf.window_levels + ' levels), '
-            + c.survival_pct + '% survive (lower is better)');
-
-        // Monetization = IAP users %/min (real-money conversion rate only)
-        let monetDetail = (m.iap_users_pct != null ? m.iap_users_pct.toFixed(3) : '--')
-            + '% of players paid per level \u00f7 avg level time \u2192 '
-            + m.monet_per_min.toFixed(4) + '% IAP conversion per minute';
-        const ctxParts = [];
-        if (m.booster_users_pct != null) ctxParts.push('Booster ' + m.booster_users_pct + '%');
-        if (m.egp_users_pct != null) ctxParts.push('EGP ' + m.egp_users_pct + '%');
-        if (ctxParts.length > 0) monetDetail += ' \u00b7 context: ' + ctxParts.join(', ');
-        html += scoreBar('IAP Monetization', m.score, monetDetail);
-
-        html += scoreBar('Revenue', r.score,
-            '$' + r.rev_per_min.toFixed(6) + '/user per minute'
-            + ' \u2014 $' + r.total_rev_per_user.toFixed(2) + '/cohort user'
-            + ' \u2014 IAP pool $' + r.total_iap_revenue.toLocaleString('en-US', {maximumFractionDigits:0}));
-
-        html += '</div></div>';
-
-        // Right col: efficiency ratios + radar
-        html += '<div class="col-md-6">';
-        html += '<div style="border:1px solid #e8e5e0;border-radius:8px;padding:12px 14px;background:#fafaf8;">';
-        html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:10px;">Efficiency Ratios</div>';
-
-        if (e.churn_monet_score != null) {
-            html += scoreBar('Churn / Monetization', e.churn_monet_score,
-                (e.monet_per_churn != null ? e.monet_per_churn.toFixed(3) : '--')
-                + ' monet%/min per churn%/min (higher = engagement outpaces churn)');
-        } else {
-            html += '<div style="font-size:0.82rem;color:#999;margin-bottom:10px;">Churn / Monetization: insufficient data</div>';
-        }
-        if (e.churn_rev_score != null) {
-            html += scoreBar('Churn / Revenue', e.churn_rev_score,
-                '$' + (e.rev_per_churn != null ? e.rev_per_churn.toFixed(4) : '--')
-                + ' per unit of churn (higher = more $ earned before players leave)');
-        } else {
-            html += '<div style="font-size:0.82rem;color:#999;margin-bottom:10px;">Churn / Revenue: insufficient data</div>';
-        }
-
-        html += '<div style="margin-top:10px;position:relative;height:180px;"><canvas id="playtimeEconRadar"></canvas></div>';
-        html += '</div></div>';
-
-        html += '</div>'; // close row
-    }
-
-    html += '</div>'; // close core loop section
-    container.innerHTML = html;
-
-    // ── CHART: Onboarding per-level churn bar ─────────────────────────────
-    const obCtx = document.getElementById('obChurnBar');
-    if (obCtx && ob.per_level_churn && ob.level_labels) {
-        const barColors = ob.per_level_churn.map(v =>
-            v > ob.mean_churn_pct * 2   ? 'rgba(212,91,91,0.82)'   :
-            v > ob.mean_churn_pct * 1.3 ? 'rgba(230,126,34,0.72)'  :
-            'rgba(91,141,184,0.62)'
-        );
-        safeNewChart(obCtx, {
-            type: 'bar',
-            data: {
-                labels: ob.level_labels.map(l => 'L' + l),
-                datasets: [{
-                    label: '% churn',
-                    data: ob.per_level_churn,
-                    backgroundColor: barColors,
-                    borderWidth: 0,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(1) + '% churn' } }
-                },
-                scales: {
-                    x: { ticks: { font: { size: 8 }, maxRotation: 0 }, grid: { display: false } },
-                    y: { ticks: { font: { size: 8 } }, grid: { color: '#e8e8e8' } }
-                }
-            }
-        });
-    }
-
-    // ── CHART: Core loop radar ────────────────────────────────────────────
-    const radarCtx = document.getElementById('playtimeEconRadar');
-    if (radarCtx && cl && cl.available) {
-        const c = cl.churn; const m = cl.monetization;
-        const r = cl.revenue; const e = cl.efficiency;
-        const labels = ['Churn', 'IAP Monetization', 'Revenue'];
-        const scores = [c.score, m.score, r.score];
-        if (e.churn_monet_score != null) { labels.push('Churn/Monet Eff.'); scores.push(e.churn_monet_score); }
-        if (e.churn_rev_score != null) { labels.push('Churn/Rev Eff.'); scores.push(e.churn_rev_score); }
-
-        safeNewChart(radarCtx, {
-            type: 'radar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Score',
-                    data: scores,
-                    backgroundColor: 'rgba(139,92,246,0.15)',
-                    borderColor: '#8B5CF6',
-                    borderWidth: 2,
-                    pointBackgroundColor: scores.map(s => scoreColor(s)),
-                    pointRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    r: {
-                        min: 0, max: 100,
-                        ticks: { stepSize: 25, font: { size: 9 }, backdropColor: 'transparent' },
-                        pointLabels: { font: { size: 10 } },
-                        grid: { color: '#e8e5e0' },
-                        angleLines: { color: '#e8e5e0' },
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ctx.label + ': ' + ctx.raw + '/100'
-                        }
-                    }
-                }
-            }
-        });
-    }
-}
-
-// =========================================================================
-// TAB 2: Deep Dive — Funnel & Retention
-// =========================================================================
-function loadDeepDiveFunnel() {
-    Promise.all([
-        fetch('/api/data/funnel').then(r => r.json()),
-        fetch('/api/data/dropoff').then(r => r.json()),
-    ]).then(([funnel, dropoff]) => {
-        // --- Pacing KPIs ---
-        const ps = document.getElementById('ddPacingScore');
-        if (ps && funnel.pacing_score != null) ps.textContent = funnel.pacing_score + '/100';
-        const cd = document.getElementById('ddCritDrops');
-        if (cd && funnel.steep_drops) cd.textContent = funnel.steep_drops.filter(d => d.severity === 'critical').length;
-        const hs = document.getElementById('ddHardStretches');
-        if (hs && funnel.cadence) hs.textContent = (funnel.cadence.long_hard_stretches || []).length;
-        const rg = document.getElementById('ddRecoveryGaps');
-        if (rg && funnel.cadence) rg.textContent = (funnel.cadence.recovery_gaps || []).length;
-
-        // --- Funnel Curve (with phase color bands) ---
-        if (funnel.funnel_curve && funnel.funnel_curve.length > 0) {
-            const fc = funnel.funnel_curve;
-            const levels = fc.map(d => 'L' + d.level);
-            const fPct = fc.map(d => d.funnel_pct ? d.funnel_pct * 100 : null);
-            const phaseGradient = {Tutorial: 'rgba(130,170,210,0.12)', Early: 'rgba(91,141,184,0.12)', Mid: 'rgba(58,124,165,0.12)', Late: 'rgba(44,62,80,0.12)'};
-            const ptColors = fc.map(d => {
-                const phaseTint = {Tutorial: '#82AAD2', Early: '#5B8DB8', Mid: '#3A7CA5', Late: '#2C3E50'};
-                return phaseTint[d.phase] || BRACKET_COLORS[d.bracket] || '#999';
-            });
-            safeNewChart('funnelCurveChart', {
-                type: 'line',
-                data: { labels: levels, datasets: [{ label: 'Funnel %', data: fPct, borderColor: '#5B8DB8', backgroundColor: 'rgba(91,141,184,0.08)', fill: true, pointRadius: 1.5, pointBackgroundColor: ptColors, borderWidth: 1.5, tension: 0.3 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: ctx => { const d = fc[ctx[0].dataIndex]; let l = []; if (d.phase) l.push('Phase: ' + d.phase); l.push('Bracket: ' + (d.bracket||'--')); if (d.users) l.push('Users: ' + d.users.toLocaleString()); if (d.aps) l.push('APS: ' + d.aps); return l; } } } }, scales: { y: { title: { display: true, text: 'Retention %', font: { size: 11 } }, grid: { color: '#F0EEEB' } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 25, font: { size: 9 } } } } }
-            });
-        }
-
-        // --- Drop-off: Actual vs Expected Baseline (phase-aware) ---
-        if (dropoff.dropoff_by_level) {
-            const dbl = dropoff.dropoff_by_level;
-            const levels = dbl.map(d => 'L' + d.level);
-            const drates = dbl.map(d => (d.dropoff_rate || 0) * 100);
-            const expected = dbl.map(d => d.expected_dropoff != null ? d.expected_dropoff * 100 : null);
-            const spikeSet = new Set((dropoff.spikes || []).map(s => s.level));
-            const critSet = new Set((dropoff.spikes || []).filter(s => s.severity === 'critical').map(s => s.level));
-            // Color bars by phase + spike status
-            const phaseBarColors = {Tutorial: 'rgba(130,170,210,0.45)', Early: 'rgba(130,170,210,0.65)', Mid: 'rgba(91,141,184,0.8)', Late: 'rgba(44,62,80,0.85)'};
-            const barColors = dbl.map(d => {
-                if (critSet.has(d.level)) return '#D45B5B';
-                if (spikeSet.has(d.level)) return '#E8A838';
-                return phaseBarColors[d.phase] || BRACKET_COLORS[d.bracket] || '#ccc';
-            });
-            safeNewChart('dropoffVsAvgChart', {
-                data: { labels: levels, datasets: [
-                    { type: 'bar', label: 'Actual Drop-off %', data: drates, backgroundColor: barColors, barPercentage: 1, categoryPercentage: 1, order: 2 },
-                    { type: 'line', label: 'Expected Baseline', data: expected, borderColor: '#2C3E50', borderWidth: 2, borderDash: [6,3], pointRadius: 0, fill: false, tension: 0.4, order: 1 }
-                ] },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { font: { size: 10 } } },
-                        tooltip: { callbacks: { afterBody: ctx => {
-                            const d = dbl[ctx[0].dataIndex];
-                            let lines = [];
-                            if (d.phase) lines.push('Phase: ' + d.phase);
-                            if (d.deviation_adj != null) lines.push('Adj. deviation: ' + (d.deviation_adj > 0 ? '+' : '') + (d.deviation_adj * 100).toFixed(2) + '%');
-                            if (d.bracket) lines.push('Bracket: ' + d.bracket);
-                            return lines;
-                        }}}
-                    },
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'Drop-off %', font: { size: 11 } }, grid: { color: '#F0EEEB' } },
-                        x: { grid: { display: false }, ticks: { maxTicksLimit: 25, font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        // --- Phase Summary ---
-        const phaseEl = document.getElementById('phaseSummaryContainer');
-        if (phaseEl && dropoff.phase_summary && dropoff.phase_summary.length > 0) {
-            const phaseColors = {Tutorial: '#82AAD2', Early: '#5B8DB8', Mid: '#3A7CA5', Late: '#2C3E50'};
-            let html = '<div class="row g-2">';
-            dropoff.phase_summary.forEach(p => {
-                const retention = p.retention_through_phase != null ? p.retention_through_phase.toFixed(0) + '%' : '--';
-                const flagged = p.flagged_levels || 0;
-                const color = phaseColors[p.phase] || '#666';
-                html += '<div class="col-md-3"><div class="kpi-card" style="border-left: 3px solid ' + color + ';">';
-                html += '<div style="font-size:0.78rem; font-weight:600; color:' + color + ';">' + p.phase + '</div>';
-                html += '<div style="font-size:0.72rem; color:#888;">L' + p.level_range + ' (' + p.level_count + ' levels)</div>';
-                html += '<div style="margin-top:4px; font-size:0.82rem;"><strong>' + retention + '</strong> pass-through</div>';
-                html += '<div style="font-size:0.72rem; color:#888;">Avg drop: ' + (p.avg_dropoff * 100).toFixed(2) + '%</div>';
-                if (flagged > 0) html += '<div style="font-size:0.72rem; color:#D45B5B;"><strong>' + flagged + '</strong> flagged level(s)</div>';
-                html += '</div></div>';
-            });
-            html += '</div>';
-            phaseEl.innerHTML = html;
-        }
-
-        // --- Funnel insights inline ---
-        const fiEl = document.getElementById('funnelInsightsInline');
-        if (fiEl) renderInlineInsights(fiEl, (funnel.insights || []).concat(dropoff.insights || []));
-
-        // --- Steep Drops (phase-aware, mid/late first) ---
-        const sdEl = document.getElementById('steepDropsContainer');
-        const sdCnt = document.getElementById('steepDropCount');
-        if (sdEl && funnel.steep_drops) {
-            // Sort: mid/late critical first, then early
-            const phaseRank = {Late: 0, Mid: 1, Early: 2, Tutorial: 3};
-            const sorted = [...funnel.steep_drops].sort((a,b) => {
-                const pa = phaseRank[a.phase] ?? 1, pb = phaseRank[b.phase] ?? 1;
-                if (a.severity !== b.severity) return a.severity === 'critical' ? -1 : 1;
-                return pa - pb;
-            });
-            const midLateCrit = sorted.filter(d => d.severity==='critical' && ['Mid','Late'].includes(d.phase));
-            if (sdCnt) sdCnt.textContent = midLateCrit.length + ' priority';
-            if (sorted.length === 0) { sdEl.innerHTML = '<p class="text-muted-custom" style="font-size:0.85rem;">None detected.</p>'; }
-            else {
-                let html = '<table class="table table-sm flags-table"><thead><tr><th>Level</th><th>Phase</th><th>Bracket</th><th>Drop</th><th>σ</th><th>APS</th></tr></thead><tbody>';
-                sorted.forEach(d => {
-                    const cls = d.severity === 'critical' ? 'flag-critical' : 'flag-warning';
-                    const dimClass = ['Tutorial','Early'].includes(d.phase) ? ' style="opacity:0.55"' : '';
-                    html += '<tr' + dimClass + '><td><strong class="' + cls + '">L' + d.level + '</strong></td><td style="font-size:0.75rem;">' + (d.phase||'--') + '</td><td>' + (d.bracket||'--') + '</td><td class="' + cls + '">' + (d.dropoff_rate*100).toFixed(2) + '%</td><td>' + (d.ratio||'--') + '</td><td>' + (d.aps||'--') + '</td></tr>';
-                });
-                html += '</tbody></table>'; sdEl.innerHTML = html;
-            }
-        }
-
-        // --- Problem Areas: Spikes + High-Loss Zones (unified) ---
-        const paEl2 = document.getElementById('problemAreasContainer');
-        const dsCnt = document.getElementById('dropoffSpikeCount');
-        if (paEl2) {
-            let html = '';
-            const spikes = dropoff.spikes || [];
-            const zones = dropoff.zones || [];
-            const midLateCrit = spikes.filter(s => s.severity==='critical' && ['Mid','Late'].includes(s.phase));
-            if (dsCnt) dsCnt.textContent = midLateCrit.length + ' priority spikes, ' + zones.length + ' zones';
-
-            // Spikes first
-            if (spikes.length > 0) {
-                html += '<h5 style="font-size:0.82rem;font-weight:600;margin-bottom:4px;">Drop-off Spikes</h5>';
-                html += '<table class="table table-sm flags-table"><thead><tr><th>Level</th><th>Phase</th><th>Bracket</th><th>Drop</th><th>σ</th><th>Users Lost</th></tr></thead><tbody>';
-                spikes.slice(0, 25).forEach(s => {
-                    const cls = s.severity === 'critical' ? 'flag-critical' : 'flag-warning';
-                    const dimClass = ['Tutorial','Early'].includes(s.phase) ? ' style="opacity:0.55"' : '';
-                    const sigmaVal = s.sigma != null ? s.sigma + 'σ' : (s.ratio ? s.ratio + 'x' : '--');
-                    html += '<tr' + dimClass + '><td><strong class="' + cls + '">L' + s.level + '</strong></td><td style="font-size:0.75rem;">' + (s.phase||'--') + '</td><td>' + (s.bracket||'--') + '</td><td class="' + cls + '">' + (s.dropoff_rate*100).toFixed(2) + '%</td><td>' + sigmaVal + '</td><td>' + s.user_loss.toLocaleString() + '</td></tr>';
-                });
-                html += '</tbody></table>';
-            }
-
-            // Zones below
-            if (zones.length > 0) {
-                html += '<h5 style="font-size:0.82rem;font-weight:600;margin-top:10px;margin-bottom:4px;">High-Loss Zones</h5>';
-                html += '<table class="table table-sm flags-table"><thead><tr><th>Zone</th><th>Loss</th><th>Users Lost</th><th>Sev.</th></tr></thead><tbody>';
-                zones.forEach(z => {
-                    const cls = z.severity === 'critical' ? 'flag-critical' : 'flag-warning';
-                    html += '<tr><td><strong>L' + z.start_level + '\u2013L' + z.end_level + '</strong></td><td class="' + cls + '">' + (z.funnel_loss_pct*100).toFixed(1) + '%</td><td>' + z.user_loss.toLocaleString() + '</td><td>' + z.severity + '</td></tr>';
-                });
-                html += '</tbody></table>';
-            }
-
-            if (spikes.length === 0 && zones.length === 0) { html = '<p class="text-muted-custom">No problem areas detected.</p>'; }
-            paEl2.innerHTML = html;
-        }
-    }).catch(err => console.error('Funnel load error:', err));
-}
-
-// =========================================================================
-// TAB 2: Deep Dive — Level Performance
-// =========================================================================
-let _rankingData = null;
-
-function loadDeepDivePerformance() {
-    fetch('/api/data/ranking').then(r => r.json()).then(data => {
-        if (data.error) return;
-        _rankingData = data;
-
-        // Score Distribution
-        const distCtx = document.getElementById('scoreDistChart');
-        if (distCtx && data.rankings) {
-            const datasets = [];
-            BRACKET_ORDER.forEach(bracket => {
-                const bl = data.rankings.filter(r => r.bracket === bracket);
-                if (bl.length === 0) return;
-                bl.sort((a,b) => a.level - b.level);
-                datasets.push({ label: bracket, data: bl.map(r => ({ x: r.level, y: r.perf_score })), backgroundColor: BRACKET_COLORS[bracket] + '99', borderColor: BRACKET_COLORS[bracket], pointRadius: 3, pointHoverRadius: 5 });
-            });
-            safeNewChart(distCtx, {
-                type: 'scatter', data: { datasets },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { size: 10 } } }, tooltip: { callbacks: { title: ctx => 'Level ' + ctx[0].raw.x, label: ctx => ctx.dataset.label + ' — Score: ' + ctx.raw.y.toFixed(3) } } }, scales: { x: { title: { display: true, text: 'Level', font: { size: 11 } }, grid: { color: '#F0EEEB' } }, y: { title: { display: true, text: 'Score', font: { size: 11 } }, grid: { color: '#F0EEEB' } } } }
-            });
-        }
-
-        // Insights inline
-        const riEl = document.getElementById('rankingInsightsInline');
-        if (riEl) renderInlineInsights(riEl, data.insights);
-
-        // Outliers
-        const outEl = document.getElementById('outliersContainer');
-        const outCnt = document.getElementById('outlierCount');
-        if (outEl && data.outliers) {
-            if (outCnt) { const o = data.outliers.filter(x => x.direction==='overperforming').length; const u = data.outliers.filter(x => x.direction==='underperforming').length; outCnt.textContent = o + ' over, ' + u + ' under'; }
-            if (data.outliers.length === 0) { outEl.innerHTML = '<p class="text-muted-custom">No outliers.</p>'; }
-            else {
-                let html = '<table class="table table-sm flags-table"><thead><tr><th>Level</th><th>Bracket</th><th>Score</th><th>Z</th><th>Dir.</th></tr></thead><tbody>';
-                data.outliers.forEach(o => {
-                    const cls = o.direction === 'underperforming' ? 'flag-critical' : 'flag-warning';
-                    html += '<tr><td><strong>L' + o.level + '</strong></td><td>' + o.bracket + '</td><td>' + o.perf_score.toFixed(3) + '</td><td class="' + cls + '">' + o.z_score.toFixed(1) + '</td><td>' + (o.direction === 'overperforming' ? '&#8593; Over' : '&#8595; Under') + '</td></tr>';
-                });
-                html += '</tbody></table>'; outEl.innerHTML = html;
-            }
-        }
-
-        // Full ranking
-        renderRankingTable('all');
-    }).catch(err => console.error('Ranking load error:', err));
-}
-
-function toggleFullRanking() {
-    const wrapper = document.getElementById('fullRankingWrapper');
-    const icon = document.getElementById('rankingToggleIcon');
-    if (wrapper.style.display === 'none') {
-        wrapper.style.display = '';
-        icon.innerHTML = '&#9660; Click to collapse';
-    } else {
-        wrapper.style.display = 'none';
-        icon.innerHTML = '&#9654; Click to expand';
-    }
-}
-
-document.getElementById('rankingBracketFilter')?.addEventListener('change', function() { renderRankingTable(this.value); });
-
-function renderRankingTable(bracketFilter) {
-    if (!_rankingData || !_rankingData.rankings) return;
-    const el = document.getElementById('fullRankingContainer');
-    const countEl = document.getElementById('rankingFilterCount');
-    if (!el) return;
-    let items = _rankingData.rankings;
-    if (bracketFilter !== 'all') items = items.filter(r => r.bracket === bracketFilter);
-    if (countEl) countEl.textContent = items.length + ' levels';
-    let html = '<table class="table table-sm flags-table"><thead><tr><th>#</th><th>Lvl</th><th>Bracket</th><th>Score</th><th>APS</th><th>Churn</th><th>Comp</th><th>Rev</th></tr></thead><tbody>';
-    items.forEach((r, i) => {
-        html += '<tr><td>' + (i+1) + '</td><td><strong>L' + r.level + '</strong></td><td>' + r.bracket + '</td><td><strong>' + r.perf_score.toFixed(3) + '</strong></td><td>' + (r.aps||'--') + '</td><td>' + (r.combined_churn*100).toFixed(2) + '%</td><td>' + (r.completion_rate*100).toFixed(1) + '%</td><td>' + (r.revenue_score ? r.revenue_score.toFixed(3) : '--') + '</td></tr>';
-    });
-    html += '</tbody></table>';
-    el.innerHTML = html;
-}
-
-// =========================================================================
-// TAB 2: Deep Dive — Difficulty & Monetization
-// =========================================================================
-function loadDeepDiveMonetization() {
-    fetch('/api/data/correlation').then(r => r.json()).then(data => {
-        if (data.error) return;
-
-        // Scatter plots
-        function renderScatter(canvasId, key, yLabel) {
-            const ctx = document.getElementById(canvasId);
-            const pts = data.scatter_data ? data.scatter_data[key] : null;
-            if (!ctx || !pts) return;
-            const datasets = [];
-            BRACKET_ORDER.forEach(b => {
-                const bp = pts.filter(p => p.bracket === b);
-                if (bp.length === 0) return;
-                datasets.push({ label: b, data: bp.map(p => ({x:p.x, y:p.y, level:p.level})), backgroundColor: BRACKET_COLORS[b]+'99', borderColor: BRACKET_COLORS[b], pointRadius: 2.5, pointHoverRadius: 5 });
-            });
-            safeNewChart(ctx, {
-                type: 'scatter', data: { datasets },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: ctx => { const pt = ctx[0].raw; return 'Level ' + (pt.level || '?'); }, label: ctx => { const pt = ctx.raw; return ctx.dataset.label + ' — APS: ' + pt.x + ', ' + yLabel + ': ' + pt.y; } } } }, scales: { x: { title: { display: true, text: 'APS', font: { size: 10 } }, grid: { color: '#F0EEEB' } }, y: { title: { display: true, text: yLabel, font: { size: 10 } }, grid: { color: '#F0EEEB' } } } }
-            });
-        }
-        renderScatter('scatterApsChurn', 'aps_vs_churn', 'Churn');
-        renderScatter('scatterApsRevenue', 'aps_vs_revenue', 'Revenue');
-
-        // Optimal Ranges
-        const orEl = document.getElementById('optimalRangesContainer');
-        if (orEl && data.optimal_ranges) {
-            const or_ = data.optimal_ranges;
-            let html = '<div class="insights-list">';
-            if (or_.lowest_churn) html += '<div class="inline-callout inline-callout-success"><span class="inline-callout-icon">&#128154;</span><strong>Lowest Churn:</strong> APS ' + or_.lowest_churn.range + ' (' + (or_.lowest_churn.avg_churn*100).toFixed(2) + '%)</div>';
-            if (or_.highest_completion) html += '<div class="inline-callout inline-callout-success"><span class="inline-callout-icon">&#9989;</span><strong>Best Completion:</strong> APS ' + or_.highest_completion.range + ' (' + (or_.highest_completion.avg_completion*100).toFixed(1) + '%)</div>';
-            if (or_.highest_revenue) html += '<div class="inline-callout inline-callout-info"><span class="inline-callout-icon">&#128176;</span><strong>Best Revenue:</strong> APS ' + or_.highest_revenue.range + ' (' + or_.highest_revenue.avg_revenue.toFixed(3) + ')</div>';
-            if (or_.best_balanced) html += '<div class="inline-callout inline-callout-info"><span class="inline-callout-icon">&#9878;</span><strong>Best Balanced:</strong> APS ' + or_.best_balanced.range + ' (composite: ' + or_.best_balanced.score + ')</div>';
-            html += '</div>';
-            orEl.innerHTML = html;
-        }
-
-        // Churn vs Revenue Scatter
-        if (data.churn_revenue && data.churn_revenue.scatter) {
-            const crCtx = document.getElementById('scatterChurnRevenue');
-            if (crCtx) {
-                const ds = [];
-                BRACKET_ORDER.forEach(b => {
-                    const pts = data.churn_revenue.scatter.filter(p => p.bracket === b);
-                    if (pts.length === 0) return;
-                    ds.push({ label: b, data: pts.map(p => ({x:p.churn, y:p.revenue, level:p.level, aps:p.aps})), backgroundColor: BRACKET_COLORS[b]+'99', borderColor: BRACKET_COLORS[b], pointRadius: 2.5, pointHoverRadius: 5 });
-                });
-                safeNewChart(crCtx, {
-                    type: 'scatter', data: { datasets: ds },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { size: 10 } } }, tooltip: { callbacks: { title: ctx => { const pt = ctx[0].raw; return 'Level ' + (pt.level || '?'); }, label: ctx => { const pt = ctx.raw; let s = ctx.dataset.label + ' — Churn: ' + pt.x + ', Revenue: ' + pt.y; if (pt.aps) s += ', APS: ' + pt.aps; return s; } } } }, scales: { x: { title: { display: true, text: 'Churn', font: { size: 10 } }, grid: { color: '#F0EEEB' } }, y: { title: { display: true, text: 'Revenue', font: { size: 10 } }, grid: { color: '#F0EEEB' } } } }
-                });
-            }
-        }
-
-        // Diminishing Returns
-        const drEl = document.getElementById('diminishingReturnsContainer');
-        if (drEl && data.diminishing_returns) {
-            const dr = data.diminishing_returns;
-            let html = '';
-            if (dr.summary) html += '<p class="rec-summary-text">' + dr.summary + '</p>';
-            if (dr.inflection_aps !== null) {
-                html += '<div class="inline-callout inline-callout-warn"><span class="inline-callout-icon">&#9888;</span><strong>Inflection: APS ~' + dr.inflection_aps + '</strong> (' + dr.inflection_bin + '). Beyond this, harder = diminishing returns.</div>';
-            }
-            if (dr.marginal_analysis && dr.marginal_analysis.length > 0) {
-                html += '<table class="table table-sm health-table" style="margin-top:8px;"><thead><tr><th>Step</th><th>&Delta; Rev</th><th>&Delta; Churn</th><th>Eff.</th><th>Verdict</th></tr></thead><tbody>';
-                const verdictMap = { ideal:'&#128994; Ideal', worthwhile:'&#128994; OK', costly:'&#128992; Costly', diminishing:'&#128308; Diminishing', neutral:'&#9898; Neutral' };
-                dr.marginal_analysis.forEach(m => {
-                    const col = m.verdict==='diminishing'?'#D45B5B':m.verdict==='costly'?'#E8A838':m.verdict==='ideal'||m.verdict==='worthwhile'?'#5DAA68':'#999';
-                    html += '<tr><td>' + m.from_bin + ' &rarr; ' + m.to_bin + '</td><td style="color:' + (m.delta_revenue>=0?'#5DAA68':'#D45B5B') + ';">' + (m.delta_revenue>=0?'+':'') + m.delta_revenue.toFixed(4) + '</td><td style="color:' + (m.delta_churn>=0?'#D45B5B':'#5DAA68') + ';">' + (m.delta_churn>=0?'+':'') + (m.delta_churn*100).toFixed(2) + '%</td><td>' + (m.marginal_efficiency!=null?m.marginal_efficiency.toFixed(2):'--') + '</td><td style="color:' + col + ';font-weight:600;">' + (verdictMap[m.verdict]||m.verdict) + '</td></tr>';
-                });
-                html += '</tbody></table>';
-            }
-            drEl.innerHTML = html || '<p class="text-muted-custom">Insufficient data.</p>';
-        }
-
-        // Correlation insights inline
-        const ciEl = document.getElementById('correlationInsightsInline');
-        if (ciEl) renderInlineInsights(ciEl, data.insights);
-    }).catch(err => console.error('Correlation load error:', err));
-}
-
-// =========================================================================
-// TAB 3: Recommendations
-// =========================================================================
-function loadRecommendations() {
-    fetch('/api/data/recommendations').then(r => r.json()).then(data => {
-        if (data.error) return;
-
-        // --- Fix vs Replicate ---
-        const frEl = document.getElementById('fixReplicateContainer');
-        if (frEl && data.fix_replicate) {
-            const fr = data.fix_replicate;
-            let html = '<p class="rec-summary-text">' + fr.summary + '</p><div class="row g-3">';
-            html += '<div class="col-md-6"><h5 style="font-size:0.88rem;color:#D45B5B;font-weight:700;">Levels to Fix</h5>';
-            if (fr.fix && fr.fix.length > 0) {
-                fr.fix.forEach(f => {
-                    html += '<div class="rec-action-card priority-high"><div class="d-flex justify-content-between"><strong>L' + f.level + '</strong> <span class="rec-badge rec-badge-fix">' + f.bracket + '</span></div>';
-                    html += '<div style="font-size:0.78rem;color:#555;margin-top:2px;">';
-                    if (f.churn!=null) html += 'Churn: ' + (f.churn*100).toFixed(2) + '% &middot; ';
-                    if (f.completion!=null) html += 'Comp: ' + (f.completion*100).toFixed(1) + '%';
-                    html += '</div><div style="font-size:0.8rem;margin-top:3px;">' + f.action + '</div>';
-                    html += '<div style="font-size:0.72rem;color:#999;margin-top:2px;">' + f.reasons.join(' &middot; ') + '</div></div>';
-                });
-            } else { html += '<p class="text-muted-custom" style="font-size:0.85rem;">No critical fixes needed.</p>'; }
-            html += '</div><div class="col-md-6"><h5 style="font-size:0.88rem;color:#5DAA68;font-weight:700;">Levels to Replicate</h5>';
-            if (fr.replicate && fr.replicate.length > 0) {
-                fr.replicate.forEach(f => {
-                    html += '<div class="rec-action-card priority-low"><div class="d-flex justify-content-between"><strong>L' + f.level + '</strong> <span class="rec-badge rec-badge-replicate">' + f.bracket + '</span></div>';
-                    html += '<div style="font-size:0.78rem;color:#555;margin-top:2px;">';
-                    if (f.churn!=null) html += 'Churn: ' + (f.churn*100).toFixed(2) + '% &middot; ';
-                    if (f.completion!=null) html += 'Comp: ' + (f.completion*100).toFixed(1) + '%';
-                    html += '</div><div style="font-size:0.8rem;margin-top:3px;">' + f.action + '</div></div>';
-                });
-            } else { html += '<p class="text-muted-custom" style="font-size:0.85rem;">No standout levels identified.</p>'; }
-            html += '</div></div>';
-            frEl.innerHTML = html;
-        }
-
-        // --- Unified Difficulty & Progression Fixes ---
-        renderDifficultyProgressionFixes(data);
-
-        // --- Best Mechanics ---
-        const mecEl = document.getElementById('mechanicsContainer');
-        if (mecEl && data.best_mechanics) {
-            const mec = data.best_mechanics;
-            const hasData = (mec.color_analysis && mec.color_analysis.length > 0) || (mec.feature_analysis && mec.feature_analysis.length > 0) || (mec.property_correlations && mec.property_correlations.length > 0);
-            if (!hasData) {
-                mecEl.innerHTML = '<div class="inline-callout inline-callout-info"><span class="inline-callout-icon">&#128196;</span>Level Parameters file not provided. Upload one to see mechanics analysis.</div>';
-            } else {
-                let html = '<p class="rec-summary-text">' + mec.summary + '</p>';
-                if (mec.property_correlations && mec.property_correlations.length > 0) {
-                    html += '<h5 style="font-size:0.85rem;font-weight:600;">Property Impact</h5>';
-                    html += '<table class="table table-sm health-table"><thead><tr><th>Property</th><th>Corr.</th><th>Strength</th><th>Effect</th></tr></thead><tbody>';
-                    mec.property_correlations.forEach(p => {
-                        const col = p.correlation > 0.1 ? '#5DAA68' : p.correlation < -0.1 ? '#D45B5B' : '#999';
-                        html += '<tr><td>' + p.property + '</td><td style="font-weight:600;color:' + col + ';">' + p.correlation + '</td><td>' + p.strength + '</td><td>' + p.direction + '</td></tr>';
-                    });
-                    html += '</tbody></table>';
-                }
-                if (mec.color_analysis && mec.color_analysis.length > 0) {
-                    html += '<h5 style="font-size:0.85rem;font-weight:600;margin-top:10px;">Color Impact</h5>';
-                    html += '<table class="table table-sm health-table"><thead><tr><th>Color</th><th>With</th><th>Score</th><th>Impact</th></tr></thead><tbody>';
-                    mec.color_analysis.forEach(c => {
-                        const col = c.impact === 'positive' ? '#5DAA68' : c.impact === 'negative' ? '#D45B5B' : '#999';
-                        html += '<tr><td>' + c.color + '</td><td>' + c.levels_with + '</td><td>' + c.avg_score_with.toFixed(4) + '</td><td style="color:' + col + ';font-weight:600;">' + (c.score_diff>0?'+':'') + c.score_diff.toFixed(4) + '</td></tr>';
-                    });
-                    html += '</tbody></table>';
-                }
-                if (mec.feature_analysis && mec.feature_analysis.length > 0) {
-                    html += '<h5 style="font-size:0.85rem;font-weight:600;margin-top:10px;">Feature Impact</h5>';
-                    html += '<table class="table table-sm health-table"><thead><tr><th>Feature</th><th>Used</th><th>Score</th><th>vs Avg</th></tr></thead><tbody>';
-                    mec.feature_analysis.forEach(f => {
-                        const col = f.impact === 'positive' ? '#5DAA68' : f.impact === 'negative' ? '#D45B5B' : '#999';
-                        html += '<tr><td>' + f.feature + '</td><td>' + f.count + '</td><td>' + f.avg_score.toFixed(4) + '</td><td style="color:' + col + ';font-weight:600;">' + (f.vs_average>0?'+':'') + f.vs_average.toFixed(4) + '</td></tr>';
-                    });
-                    html += '</tbody></table>';
-                }
-                if (mec.best_combos && mec.best_combos.length > 0) {
-                    html += '<h5 style="font-size:0.85rem;font-weight:600;margin-top:10px;">Best Combinations</h5>';
-                    html += '<table class="table table-sm health-table"><thead><tr><th>Features</th><th>Colors</th><th>Score</th><th>Lvls</th></tr></thead><tbody>';
-                    mec.best_combos.forEach(c => {
-                        html += '<tr><td>' + c.features + '</td><td>' + c.colors + '</td><td style="font-weight:600;">' + c.avg_score.toFixed(4) + '</td><td>' + c.level_count + '</td></tr>';
-                    });
-                    html += '</tbody></table>';
-                }
-                mecEl.innerHTML = html;
-            }
-        }
-    }).catch(err => console.error('Recs load error:', err));
-}
-
-// =========================================================================
-// Unified Difficulty & Progression Fixes
-// =========================================================================
-function renderDifficultyProgressionFixes(data) {
-    const dc = data.difficulty_curve || {};
-    const sm = data.smoothing || {};
-    const re = data.reorder || {};
-
-    // --- 1. APS Curve Chart ---
-    const curveCtx = document.getElementById('apsCurveChart');
-    if (curveCtx && dc.curve_points && dc.curve_points.length > 0) {
-        const pts = dc.curve_points;
-        const labels = pts.map(p => 'L' + p.level);
-        const actualData = pts.map(p => p.actual_aps);
-        const idealData = pts.map(p => p.ideal_aps);
-
-        // Find problem zone ranges for highlighting
-        const problemZones = [];
-        const allActionable = (dc.recommendations || []).filter(z => z.priority === 'high' || z.priority === 'medium');
-        allActionable.forEach(z => {
-            problemZones.push({ start: z.zone_start, end: z.zone_end, status: z.status });
-        });
-
-        // Build background bands for problem zones
-        const annotations = {};
-        problemZones.forEach((pz, i) => {
-            // Find index range in curve points
-            const startIdx = pts.findIndex(p => p.level >= pz.start);
-            const endIdx = pts.findIndex(p => p.level > pz.end);
-            if (startIdx >= 0) {
-                annotations['zone' + i] = {
-                    type: 'box',
-                    xMin: startIdx,
-                    xMax: endIdx >= 0 ? endIdx - 1 : pts.length - 1,
-                    backgroundColor: pz.status === 'too_hard' || pz.status === 'steep_ramp' ? 'rgba(212,91,91,0.08)' : 'rgba(232,168,56,0.08)',
-                    borderColor: pz.status === 'too_hard' || pz.status === 'steep_ramp' ? 'rgba(212,91,91,0.3)' : 'rgba(232,168,56,0.3)',
-                    borderWidth: 1,
-                };
-            }
-        });
-
-        safeNewChart(curveCtx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'APS (5-level avg)',
-                        data: actualData,
-                        borderColor: '#8B5CF6',
-                        backgroundColor: 'rgba(139,92,246,0.1)',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        pointHoverRadius: 3,
-                        fill: false,
-                        tension: 0.1,
-                    },
-                    {
-                        label: 'Ideal Curve',
-                        data: idealData,
-                        borderColor: '#999',
-                        borderDash: [6, 3],
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        fill: false,
-                        tension: 0.3,
-                    },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
-                    tooltip: {
-                        callbacks: {
-                            title: ctx => ctx[0].label,
-                            afterBody: ctx => {
-                                const idx = ctx[0].dataIndex;
-                                const pt = pts[idx];
-                                return pt.bracket ? 'Bracket: ' + pt.bracket : '';
-                            }
-                        }
-                    },
-                    annotation: Object.keys(annotations).length > 0 ? { annotations: annotations } : undefined,
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        ticks: { maxTicksLimit: 25, font: { size: 9 }, maxRotation: 0 },
-                        grid: { color: '#F0EEEB' },
-                    },
-                    y: {
-                        title: { display: true, text: 'APS', font: { size: 10 } },
-                        grid: { color: '#F0EEEB' },
-                    },
-                },
-            }
-        });
-    }
-
-    // --- 2. Bracket APS Targets (compact collapsible) ---
-    const btEl = document.getElementById('bracketTargetsRef');
-    if (btEl && dc.bracket_targets && dc.bracket_targets.length > 0) {
-        let html = '<div style="border:1px solid #e8e5e0;border-radius:8px;padding:10px 14px;background:#fafaf8;">';
-        html += '<div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="document.getElementById(\'btBody\').style.display=document.getElementById(\'btBody\').style.display===\'none\'?\'\':\'none\';this.querySelector(\'span\').innerHTML=document.getElementById(\'btBody\').style.display===\'none\'?\'&#9654; Show targets\':\'&#9660; Hide targets\';">';
-        html += '<span style="font-size:0.82rem;font-weight:600;color:#555;">Bracket APS Targets</span>';
-        html += '<span style="font-size:0.75rem;color:#8B5CF6;cursor:pointer;">&#9654; Show targets</span></div>';
-        html += '<div id="btBody" style="display:none;margin-top:8px;">';
-        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-        dc.bracket_targets.forEach(t => {
-            const col = BRACKET_COLORS[t.bracket] || '#999';
-            html += '<div style="flex:1;min-width:100px;background:white;border:1px solid #e8e5e0;border-radius:6px;padding:8px 10px;text-align:center;">';
-            html += '<div style="font-size:0.72rem;font-weight:700;color:' + col + ';">' + t.bracket + '</div>';
-            html += '<div style="font-size:1.05rem;font-weight:700;color:#333;">' + t.sweet_spot + '</div>';
-            html += '<div style="font-size:0.68rem;color:#999;">' + t.recommended_min + ' – ' + t.recommended_max + '</div>';
-            html += '<div style="font-size:0.68rem;color:#777;">Current: ' + t.current_avg + '</div>';
-            html += '</div>';
-        });
-        html += '</div></div></div>';
-        btEl.innerHTML = html;
-    }
-
-    // --- 3. Unified Action List ---
-    // Merge items from smoothing, reorder, and difficulty curve into one sorted list
-    const actions = [];
-
-    // From smoothing (drop-off zones)
-    if (sm.recommendations) {
-        sm.recommendations.forEach(rec => {
-            if (rec.severity === 'info') return; // skip tutorial info
-            const priority = rec.severity === 'critical' ? 1 : 2;
-            const lossStr = rec.funnel_loss ? ' (' + rec.funnel_loss + '% funnel loss)' : '';
-            let subItems = [];
-            if (rec.worst_levels) {
-                rec.worst_levels.forEach(lv => {
-                    subItems.push('L' + lv.level + ' (' + lv.bracket + '): ' + lv.action);
-                });
-            }
-            actions.push({
-                priority: priority,
-                type: 'dropoff',
-                typeLabel: 'Drop-off',
-                zone: rec.zone,
-                headline: rec.zone_action,
-                detail: rec.phase + ' phase' + lossStr,
-                subItems: subItems,
-                badge: rec.severity,
-                sortKey: priority * 1000 - (rec.funnel_loss || 0),
-            });
-        });
-    }
-
-    // From reorder (spike jumps & bracket jumps)
-    if (re.recommendations) {
-        re.recommendations.forEach(rec => {
-            const priority = rec.priority === 'high' ? 1 : 2;
-            const zone = rec.type === 'spike_jump'
-                ? 'L' + rec.from_level + ' → L' + rec.to_level
-                : 'L' + rec.from_level + ' → L' + rec.to_level;
-            let subItems = [];
-            if (rec.suggestion) subItems.push(rec.suggestion);
-            actions.push({
-                priority: priority,
-                type: 'reorder',
-                typeLabel: 'Reorder',
-                zone: zone,
-                headline: rec.action,
-                detail: rec.type === 'spike_jump' ? 'APS spike (' + (rec.delta > 0 ? '+' : '') + rec.delta.toFixed(2) + ')' : 'Bracket jump',
-                subItems: subItems,
-                badge: rec.priority,
-                sortKey: priority * 1000 - Math.abs(rec.delta || 0) * 10,
-            });
-        });
-    }
-
-    // From difficulty curve (zone deviations)
-    if (dc.recommendations) {
-        dc.recommendations.forEach(z => {
-            const priority = z.priority === 'high' ? 1 : z.priority === 'medium' ? 2 : 3;
-            actions.push({
-                priority: priority,
-                type: 'curve',
-                typeLabel: 'Curve',
-                zone: z.zone,
-                headline: z.action,
-                detail: 'Actual: ' + z.actual_avg_aps + ' · Ideal: ' + z.ideal_avg_aps,
-                subItems: [],
-                badge: z.priority,
-                sortKey: priority * 1000 - Math.abs(z.deviation || 0) * 10,
-            });
-        });
-    }
-
-    // Sort: high priority first, then by impact
-    actions.sort((a, b) => a.sortKey - b.sortKey);
-
-    // Cap at a readable amount — show top 15, rest behind toggle
-    const INITIAL_SHOW = 15;
-
-    // Render
-    const uaEl = document.getElementById('unifiedActionsContainer');
-    if (uaEl) {
-        if (actions.length === 0) {
-            uaEl.innerHTML = '<div class="inline-callout inline-callout-success"><span class="inline-callout-icon">&#9989;</span>Difficulty progression is smooth. No significant issues detected.</div>';
-        } else {
-            // Summary line
-            const highCount = actions.filter(a => a.priority === 1).length;
-            const medCount = actions.filter(a => a.priority === 2).length;
-            let html = '<p class="rec-summary-text">' + actions.length + ' progression issue' + (actions.length !== 1 ? 's' : '') + ' found';
-            if (highCount > 0) html += ' — <strong style="color:#D45B5B;">' + highCount + ' high priority</strong>';
-            if (medCount > 0) html += ', ' + medCount + ' medium';
-            html += '.</p>';
-
-            // Type pill legend
-            const typeColors = { dropoff: '#D45B5B', reorder: '#8B5CF6', curve: '#E8A838' };
-            html += '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">';
-            html += '<span style="font-size:0.72rem;color:#888;">Types:</span>';
-            html += '<span style="font-size:0.7rem;padding:1px 6px;border-radius:3px;background:#D45B5B22;color:#D45B5B;font-weight:600;">Drop-off = player loss zone</span>';
-            html += '<span style="font-size:0.7rem;padding:1px 6px;border-radius:3px;background:#8B5CF622;color:#8B5CF6;font-weight:600;">Reorder = difficulty spike</span>';
-            html += '<span style="font-size:0.7rem;padding:1px 6px;border-radius:3px;background:#E8A83822;color:#E8A838;font-weight:600;">Curve = off ideal ramp</span>';
-            html += '</div>';
-
-            // Numbered action list
-            actions.forEach((a, i) => {
-                if (i === INITIAL_SHOW && actions.length > INITIAL_SHOW) {
-                    html += '<div id="moreActionsWrapper" style="display:none;">';
-                }
-                const borderColor = a.priority === 1 ? '#D45B5B' : a.priority === 2 ? '#E8A838' : '#ccc';
-                const bgColor = a.priority === 1 ? '#fef5f5' : a.priority === 2 ? '#fef9f0' : '#fafaf8';
-                const typeColor = typeColors[a.type] || '#999';
-
-                html += '<div style="display:flex;gap:10px;margin-bottom:8px;padding:10px 12px;border-left:3px solid ' + borderColor + ';background:' + bgColor + ';border-radius:0 6px 6px 0;">';
-
-                // Step number
-                html += '<div style="font-size:1.1rem;font-weight:700;color:' + borderColor + ';min-width:24px;text-align:center;line-height:1.3;">' + (i + 1) + '</div>';
-
-                // Content
-                html += '<div style="flex:1;min-width:0;">';
-
-                // Header row: zone + type pill + priority
-                html += '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
-                html += '<strong style="font-size:0.88rem;">' + a.zone + '</strong>';
-                html += '<span style="font-size:0.65rem;padding:1px 6px;border-radius:3px;background:' + typeColor + '22;color:' + typeColor + ';font-weight:600;">' + a.typeLabel + '</span>';
-                if (a.badge === 'high' || a.badge === 'critical') {
-                    html += '<span class="rec-badge rec-badge-high" style="font-size:0.65rem;">' + a.badge + '</span>';
-                } else if (a.badge === 'medium') {
-                    html += '<span class="rec-badge rec-badge-medium" style="font-size:0.65rem;">medium</span>';
-                }
-                html += '</div>';
-
-                // Headline
-                html += '<div style="font-size:0.82rem;color:#444;margin-top:3px;">' + a.headline + '</div>';
-
-                // Detail line
-                html += '<div style="font-size:0.72rem;color:#999;margin-top:2px;">' + a.detail + '</div>';
-
-                // Sub-items (specific level fixes or swap suggestions)
-                if (a.subItems && a.subItems.length > 0) {
-                    html += '<div style="margin-top:5px;padding-top:4px;border-top:1px solid #f0eeeb;">';
-                    a.subItems.forEach(si => {
-                        html += '<div style="font-size:0.76rem;color:#666;padding:2px 0;">&#8627; ' + si + '</div>';
-                    });
-                    html += '</div>';
-                }
-
-                html += '</div></div>';
-            });
-
-            // Close the "more" wrapper if it was opened
-            if (actions.length > INITIAL_SHOW) {
-                html += '</div>'; // close moreActionsWrapper
-                html += '<div style="text-align:center;margin-top:8px;">';
-                html += '<button onclick="var w=document.getElementById(\'moreActionsWrapper\');var b=this;if(w.style.display===\'none\'){w.style.display=\'\';b.textContent=\'Show fewer\';}else{w.style.display=\'none\';b.textContent=\'Show all ' + actions.length + ' issues\';}" style="font-size:0.8rem;padding:4px 16px;border:1px solid #d5d0c8;border-radius:6px;background:white;color:#555;cursor:pointer;">Show all ' + actions.length + ' issues</button>';
-                html += '</div>';
-            }
-
-            uaEl.innerHTML = html;
-        }
-    }
-}
-
-// =========================================================================
-// TAB 4: Main Breakdown
-// =========================================================================
-function loadMainBreakdown() {
-    const panel = document.getElementById('mainBreakdownPanel');
-    const loading = document.getElementById('mainBreakdownLoading');
-    const container = document.getElementById('mainBreakdownContent');
-    if (!panel || !container) return;
-
-    fetch('/api/data/main-breakdown').then(r => r.json()).then(data => {
-        if (loading) loading.style.display = 'none';
-        if (!data || !data.available) { panel.style.display = 'none'; return; }
-        panel.style.display = '';
-        renderMainBreakdown(data, container);
-    }).catch(() => { if (loading) loading.style.display = 'none'; });
-}
-
-function renderMainBreakdown(data, container) {
-    const pc = data.pacing_compliance;
-    const dm = data.difficulty_mismatches;
-    const BK_COLORS = { 'Easy': '#5DAA68', 'Medium': '#5B8DB8', 'Hard': '#E8A838', 'Super Hard': '#D45B5B', 'Wall': '#8B5CF6' };
-    const BK_SHORT = { 'Easy': 'E', 'Medium': 'M', 'Hard': 'H', 'Super Hard': 'SH', 'Wall': 'W' };
-
-    function complianceBadge(pct) {
-        if (pct >= 90) return '<span style="color:#27ae60;font-weight:700;">' + pct + '%</span>';
-        if (pct >= 70) return '<span style="color:#2980b9;font-weight:700;">' + pct + '%</span>';
-        if (pct >= 50) return '<span style="color:#e67e22;font-weight:700;">' + pct + '%</span>';
-        return '<span style="color:#D45B5B;font-weight:700;">' + pct + '%</span>';
-    }
-
-    let html = '';
-
-    // ── SECTION 1: PACING FORMULA COMPLIANCE ────────────────────────────
-    html += '<div style="border-left:3px solid #E8701A;padding-left:14px;margin-bottom:24px;">';
-    html += '<div style="font-size:0.88rem;font-weight:700;color:#E8701A;margin-bottom:10px;">'
-        + '1. Pacing Formula Compliance</div>';
-    html += '<div style="font-size:0.76rem;color:#888;margin-bottom:12px;">'
-        + 'Does the game\'s target difficulty column match the Voodoo puzzle hit formula pattern? '
-        + 'The formula defines the intended progression cadence (E/M/H/SH/W) for each level position.'
-        + '</div>';
-
-    // KPI row
-    html += '<div class="row g-2 mb-3">';
-    html += '<div class="col-md-3"><div style="background:#f8f8f6;border-radius:8px;padding:10px 14px;text-align:center;">'
-        + '<div style="font-size:0.72rem;color:#999;">Compliance</div>'
-        + '<div style="font-size:1.3rem;font-weight:700;">' + complianceBadge(pc.compliance_pct) + '</div>'
-        + '<div style="font-size:0.68rem;color:#aaa;">' + pc.match_count + '/' + pc.total_levels + ' levels match</div>'
-        + '</div></div>';
-    html += '<div class="col-md-3"><div style="background:#f8f8f6;border-radius:8px;padding:10px 14px;text-align:center;">'
-        + '<div style="font-size:0.72rem;color:#999;">Deviations</div>'
-        + '<div style="font-size:1.3rem;font-weight:700;color:#D45B5B;">' + pc.deviation_count + '</div>'
-        + '<div style="font-size:0.68rem;color:#aaa;">' + pc.harder_count + ' harder · ' + pc.easier_count + ' easier</div>'
-        + '</div></div>';
-    html += '<div class="col-md-3"><div style="background:#f8f8f6;border-radius:8px;padding:10px 14px;text-align:center;">'
-        + '<div style="font-size:0.72rem;color:#999;">Longest Match Streak</div>'
-        + '<div style="font-size:1.3rem;font-weight:700;color:#27ae60;">' + pc.longest_match_streak + '</div>'
-        + '<div style="font-size:0.68rem;color:#aaa;">consecutive levels</div>'
-        + '</div></div>';
-    html += '<div class="col-md-3"><div style="background:#f8f8f6;border-radius:8px;padding:10px 14px;text-align:center;">'
-        + '<div style="font-size:0.72rem;color:#999;">Longest Deviation Streak</div>'
-        + '<div style="font-size:1.3rem;font-weight:700;color:#e67e22;">' + pc.longest_deviation_streak + '</div>'
-        + '<div style="font-size:0.68rem;color:#aaa;">consecutive levels</div>'
-        + '</div></div>';
-    html += '</div>';
-
-    // Pacing chart: formula vs target as two lines (rank values)
-    html += '<div style="border:1px solid #e8e5e0;border-radius:8px;padding:14px;background:#fafaf8;margin-bottom:14px;">';
-    html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:6px;">Formula vs Target Difficulty Curve</div>';
-    html += '<div style="font-size:0.70rem;color:#aaa;margin-bottom:8px;">Orange = Voodoo formula · Blue = Game\'s target column · Mismatches highlighted in red</div>';
-    html += '<div style="position:relative;height:200px;"><canvas id="pacingCompChart"></canvas></div>';
-    html += '</div>';
-
-    // Deviation table (top deviations)
-    if (pc.deviations && pc.deviations.length > 0) {
-        html += '<div style="margin-bottom:6px;font-size:0.78rem;font-weight:600;color:#555;">'
-            + 'Top Deviations' + (pc.total_deviations > 50 ? ' (showing 50 of ' + pc.total_deviations + ')' : '') + '</div>';
-        html += '<div style="max-height:200px;overflow-y:auto;border:1px solid #e8e5e0;border-radius:6px;">';
-        html += '<table style="width:100%;font-size:0.74rem;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#f5f5f3;position:sticky;top:0;">'
-            + '<th style="padding:5px 8px;text-align:left;">Level</th>'
-            + '<th style="padding:5px 8px;text-align:left;">Target</th>'
-            + '<th style="padding:5px 8px;text-align:left;">Formula</th>'
-            + '<th style="padding:5px 8px;text-align:left;">Direction</th></tr></thead><tbody>';
-        pc.deviations.forEach(d => {
-            const dirCol = d.direction === 'harder' ? '#D45B5B' : '#2980b9';
-            html += '<tr style="border-top:1px solid #f0eeeb;">'
-                + '<td style="padding:4px 8px;">L' + d.level + '</td>'
-                + '<td style="padding:4px 8px;color:' + (BK_COLORS[d.target]||'#555') + ';font-weight:600;">' + d.target + '</td>'
-                + '<td style="padding:4px 8px;color:' + (BK_COLORS[d.formula]||'#555') + ';font-weight:600;">' + d.formula + '</td>'
-                + '<td style="padding:4px 8px;color:' + dirCol + ';font-weight:600;">' + d.direction + '</td></tr>';
-        });
-        html += '</tbody></table></div>';
-    }
-    html += '</div>'; // close section 1
-
-    // ── SECTION 2: DIFFICULTY MISMATCHES (APS-based) ────────────────────
-    html += '<div style="border-left:3px solid #3A7CA5;padding-left:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:0.88rem;font-weight:700;color:#3A7CA5;margin-bottom:10px;">'
-        + '2. Difficulty Mismatch Detection (APS-Based)</div>';
-    html += '<div style="font-size:0.76rem;color:#888;margin-bottom:12px;">'
-        + 'APS brackets set by % of max APS (' + dm.max_aps + '): '
-        + 'E = 0–20% · M = 20–40% · H = 40–60% · SH = 60–80% · W = 80–100%. '
-        + 'Levels where APS-based bracket ≠ target bracket are flagged.'
-        + '</div>';
-
-    // KPI row
-    html += '<div class="row g-2 mb-3">';
-    html += '<div class="col-md-3"><div style="background:#f6fafd;border-radius:8px;padding:10px 14px;text-align:center;">'
-        + '<div style="font-size:0.72rem;color:#999;">APS Match Rate</div>'
-        + '<div style="font-size:1.3rem;font-weight:700;">' + complianceBadge(dm.compliance_pct) + '</div>'
-        + '<div style="font-size:0.68rem;color:#aaa;">' + dm.match_count + '/' + dm.total_levels + ' match</div>'
-        + '</div></div>';
-    html += '<div class="col-md-3"><div style="background:#f6fafd;border-radius:8px;padding:10px 14px;text-align:center;">'
-        + '<div style="font-size:0.72rem;color:#999;">Mismatches</div>'
-        + '<div style="font-size:1.3rem;font-weight:700;color:#D45B5B;">' + dm.mismatch_count + '</div>'
-        + '<div style="font-size:0.68rem;color:#aaa;">' + dm.harder_count + ' play harder · ' + dm.easier_count + ' play easier</div>'
-        + '</div></div>';
-
-    // Bracket thresholds
-    html += '<div class="col-md-6"><div style="background:#f6fafd;border-radius:8px;padding:10px 14px;">'
-        + '<div style="font-size:0.72rem;color:#999;margin-bottom:4px;">APS Bracket Ranges</div>'
-        + '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
-    ['Easy','Medium','Hard','Super Hard','Wall'].forEach(b => {
-        html += '<span style="font-size:0.70rem;padding:2px 8px;border-radius:4px;background:' + BK_COLORS[b] + '22;color:' + BK_COLORS[b] + ';font-weight:600;">'
-            + BK_SHORT[b] + ': ' + (dm.bracket_thresholds[b] || '–') + '</span>';
-    });
-    html += '</div></div></div>';
-    html += '</div>';
-
-    // Per-bracket mismatch rate bars
-    html += '<div class="row g-2 mb-3">';
-    ['Easy','Medium','Hard','Super Hard','Wall'].forEach(b => {
-        const br = dm.bracket_mismatch_rates[b];
-        if (!br) return;
-        const barPct = br.rate;
-        const barCol = barPct > 50 ? '#D45B5B' : barPct > 25 ? '#e67e22' : '#27ae60';
-        html += '<div class="col">'
-            + '<div style="font-size:0.70rem;font-weight:600;color:' + BK_COLORS[b] + ';margin-bottom:2px;">' + b + '</div>'
-            + '<div style="background:#f0eeeb;border-radius:4px;height:6px;margin-bottom:2px;">'
-            + '<div style="background:' + barCol + ';height:100%;border-radius:4px;width:' + barPct + '%;"></div></div>'
-            + '<div style="font-size:0.66rem;color:#999;">' + br.mismatched + '/' + br.total + ' mismatch (' + br.rate + '%)</div>'
-            + '</div>';
-    });
-    html += '</div>';
-
-    // APS vs Target chart
-    html += '<div style="border:1px solid #dce8f0;border-radius:8px;padding:14px;background:#f6fafd;margin-bottom:14px;">';
-    html += '<div style="font-size:0.80rem;font-weight:700;color:#555;margin-bottom:6px;">APS by Level — colored by Target Bracket</div>';
-    html += '<div style="font-size:0.70rem;color:#aaa;margin-bottom:8px;">Bar = actual APS · Dashed lines = bracket boundaries · Red outline = mismatch</div>';
-    html += '<div style="position:relative;height:220px;"><canvas id="apsMismatchChart"></canvas></div>';
-    html += '</div>';
-
-    // Mismatch table
-    if (dm.mismatches && dm.mismatches.length > 0) {
-        html += '<div style="margin-bottom:6px;font-size:0.78rem;font-weight:600;color:#555;">'
-            + 'Flagged Mismatches — sorted by severity' + (dm.total_mismatches > 80 ? ' (showing 80 of ' + dm.total_mismatches + ')' : '') + '</div>';
-        html += '<div style="max-height:220px;overflow-y:auto;border:1px solid #dce8f0;border-radius:6px;">';
-        html += '<table style="width:100%;font-size:0.74rem;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#eef4f8;position:sticky;top:0;">'
-            + '<th style="padding:5px 8px;">Level</th>'
-            + '<th style="padding:5px 8px;">Target</th>'
-            + '<th style="padding:5px 8px;">APS Bracket</th>'
-            + '<th style="padding:5px 8px;">APS</th>'
-            + '<th style="padding:5px 8px;">% of Max</th>'
-            + '<th style="padding:5px 8px;">Direction</th>'
-            + '<th style="padding:5px 8px;">Severity</th></tr></thead><tbody>';
-        dm.mismatches.forEach(m => {
-            const dirCol = m.direction === 'harder' ? '#D45B5B' : '#2980b9';
-            const sevLabel = m.severity >= 3 ? 'CRITICAL' : m.severity >= 2 ? 'HIGH' : 'MODERATE';
-            const sevCol = m.severity >= 3 ? '#8B0000' : m.severity >= 2 ? '#D45B5B' : '#e67e22';
-            html += '<tr style="border-top:1px solid #eef2f5;">'
-                + '<td style="padding:4px 8px;font-weight:600;">L' + m.level + '</td>'
-                + '<td style="padding:4px 8px;color:' + (BK_COLORS[m.target]||'#555') + ';font-weight:600;">' + m.target + '</td>'
-                + '<td style="padding:4px 8px;color:' + (BK_COLORS[m.aps_bracket]||'#555') + ';font-weight:600;">' + m.aps_bracket + '</td>'
-                + '<td style="padding:4px 8px;">' + m.aps + '</td>'
-                + '<td style="padding:4px 8px;">' + m.aps_pct + '%</td>'
-                + '<td style="padding:4px 8px;color:' + dirCol + ';font-weight:600;">' + m.direction + '</td>'
-                + '<td style="padding:4px 8px;color:' + sevCol + ';font-weight:700;">' + sevLabel + '</td></tr>';
-        });
-        html += '</tbody></table></div>';
-    }
-
-    html += '</div>'; // close section 2
-
-    container.innerHTML = html;
-
-    // ── CHART 1: Pacing Formula vs Target ───────────────────────────────
-    const pacCtx = document.getElementById('pacingCompChart');
-    if (pacCtx && pc.formula_sequence && pc.target_sequence) {
-        const labels = pc.formula_sequence.map(s => 'L' + s.level);
-        const formulaRanks = pc.formula_sequence.map(s => s.rank);
-        const targetRanks = pc.target_sequence.map(s => s.rank >= 0 ? s.rank : null);
-
-        // Highlight mismatches
-        const mismatchPts = pc.target_sequence.map((s, i) => {
-            return (s.rank >= 0 && s.rank !== formulaRanks[i]) ? s.rank : null;
-        });
-
-        safeNewChart(pacCtx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Formula',
-                        data: formulaRanks,
-                        borderColor: '#E8701A',
-                        backgroundColor: 'rgba(232,112,26,0.08)',
-                        fill: true,
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        tension: 0.1,
-                        stepped: 'middle',
-                    },
-                    {
-                        label: 'Target',
-                        data: targetRanks,
-                        borderColor: '#3A7CA5',
-                        borderWidth: 1.5,
-                        pointRadius: 0,
-                        tension: 0.1,
-                        stepped: 'middle',
-                    },
-                    {
-                        label: 'Mismatch',
-                        data: mismatchPts,
-                        borderColor: 'transparent',
-                        pointBackgroundColor: '#D45B5B',
-                        pointBorderColor: '#D45B5B',
-                        pointRadius: 3,
-                        showLine: false,
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { font: { size: 10 }, usePointStyle: true, padding: 12 } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                const rankToName = ['Easy','Medium','Hard','Super Hard','Wall'];
-                                const val = ctx.raw;
-                                if (val == null) return '';
-                                return ctx.dataset.label + ': ' + (rankToName[val] || val);
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        min: -0.5, max: 4.5,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(v) { return ['E','M','H','SH','W'][v] || ''; },
-                            font: { size: 10 }
-                        },
-                        grid: { color: '#f0eeeb' }
-                    },
-                    x: {
-                        ticks: { maxTicksLimit: 30, font: { size: 8 }, maxRotation: 0 },
-                        grid: { display: false }
-                    }
-                }
-            }
-        });
-    }
-
-    // ── CHART 2: APS Mismatch ───────────────────────────────────────────
-    const apsCtx = document.getElementById('apsMismatchChart');
-    if (apsCtx && dm.per_level) {
-        const labels = dm.per_level.map(p => 'L' + p.level);
-        const apsVals = dm.per_level.map(p => p.aps);
-        const barColors = dm.per_level.map(p => {
-            const col = BK_COLORS[p.target] || '#ccc';
-            return col + (p.match === false ? 'DD' : '88');
-        });
-        const borderColors = dm.per_level.map(p => {
-            return p.match === false ? '#D45B5B' : 'transparent';
-        });
-        const borderWidths = dm.per_level.map(p => p.match === false ? 2 : 0);
-
-        // Bracket boundary lines
-        const maxAps = dm.max_aps;
-        const annotations = {};
-        [0.20, 0.40, 0.60, 0.80].forEach((pct, i) => {
-            const lineLabels = ['E|M','M|H','H|SH','SH|W'];
-            annotations['line' + i] = {
-                type: 'line', yMin: maxAps * pct, yMax: maxAps * pct,
-                borderColor: '#aaa', borderWidth: 1, borderDash: [4, 3],
-                label: {
-                    display: true, content: lineLabels[i],
-                    position: 'start', font: { size: 9, weight: '600' },
-                    backgroundColor: 'rgba(255,255,255,0.85)', color: '#777', padding: 2
-                }
-            };
-        });
-
-        safeNewChart(apsCtx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'APS',
-                    data: apsVals,
-                    backgroundColor: barColors,
-                    borderColor: borderColors,
-                    borderWidth: borderWidths,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    annotation: { annotations: annotations },
-                    tooltip: {
-                        callbacks: {
-                            afterBody: function(ctx) {
-                                const p = dm.per_level[ctx[0].dataIndex];
-                                const lines = ['Target: ' + (p.target || '–'), 'APS bracket: ' + p.aps_bracket];
-                                if (p.match === false) lines.push('⚠ MISMATCH');
-                                return lines;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { ticks: { maxTicksLimit: 30, font: { size: 8 }, maxRotation: 0 }, grid: { display: false } },
-                    y: { grid: { color: '#e8e8e8' }, ticks: { font: { size: 9 } } }
-                }
-            }
-        });
-    }
-}
-
-// =========================================================================
-// Init
-// =========================================================================
-initLevelRange();
-reloadAllData();
-</script>
 {% endblock %}

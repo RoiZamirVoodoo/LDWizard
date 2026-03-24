@@ -424,3 +424,361 @@ body {
 .maturity-bar-full { background: var(--success); height: 100%; }
 .maturity-bar-partial { background: var(--warning); height: 100%; }
 .maturity-bar-minimal { background: var(--danger); height: 100%; }
+
+/* =========================================================================
+   Focus dashboard
+   ========================================================================= */
+.focus-bar-label {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.focus-field-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.focus-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.focus-top-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr 1fr 1fr;
+    gap: 1rem;
+}
+
+.focus-card,
+.focus-panel,
+.focus-chart-shell,
+.focus-stat-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.focus-card {
+    padding: 1.15rem 1.2rem;
+}
+
+.focus-card-hero {
+    padding: 1.35rem;
+}
+
+.focus-card-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 0.65rem;
+}
+
+.focus-hero-row {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+}
+
+.focus-hero-grade {
+    font-size: 3rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--blue-primary);
+}
+
+.focus-hero-score {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+}
+
+.focus-hero-copy {
+    flex: 1;
+}
+
+.focus-hero-copy h2,
+.focus-section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.focus-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.focus-card-copy,
+.focus-section-header p,
+.focus-item-copy,
+.focus-stat-copy,
+.focus-inline-note {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.focus-card-copy {
+    margin: 0.55rem 0 0;
+    min-height: 3.3rem;
+}
+
+.focus-meta-row,
+.focus-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+}
+
+.focus-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.28rem 0.7rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    background: #EEF2F5;
+    color: var(--text-dark);
+}
+
+.focus-pill-default {
+    background: #EEF2F5;
+    color: var(--text-dark);
+}
+
+.focus-pill-warning {
+    background: #FFF3E0;
+    color: #996D00;
+}
+
+.focus-pill-danger {
+    background: #FDE8E8;
+    color: var(--danger);
+}
+
+.focus-pill-success {
+    background: #E8F5E9;
+    color: var(--success);
+}
+
+.focus-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.focus-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 1rem;
+    margin-top: 0.25rem;
+}
+
+.focus-section-header p {
+    margin: 0;
+    max-width: 540px;
+    text-align: right;
+}
+
+.focus-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--blue-primary);
+    margin-bottom: 0.2rem;
+}
+
+.focus-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.focus-split-tight {
+    margin-top: 0.15rem;
+}
+
+.focus-panel {
+    padding: 1rem 1.1rem;
+}
+
+.focus-panel-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.85rem;
+}
+
+.focus-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.focus-list-compact {
+    gap: 0.6rem;
+}
+
+.focus-item {
+    padding: 0.95rem 1rem;
+    border-radius: 12px;
+    background: #FBFCFD;
+    border: 1px solid #E7EDF3;
+}
+
+.focus-item-tight {
+    padding: 0.85rem 0.9rem;
+}
+
+.focus-item-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.focus-item-header h3 {
+    font-size: 0.98rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.focus-item-copy {
+    margin: 0.45rem 0 0;
+}
+
+.focus-mini-list {
+    margin: 0.65rem 0 0;
+    padding-left: 1rem;
+    color: var(--text-dark);
+    font-size: 0.84rem;
+}
+
+.focus-mini-list li + li {
+    margin-top: 0.2rem;
+}
+
+.focus-chart-shell {
+    padding: 1rem 1.1rem;
+    height: 320px;
+}
+
+.focus-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.focus-stat-card {
+    padding: 1rem 1.05rem;
+}
+
+.focus-stat-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text-dark);
+}
+
+.focus-stat-copy {
+    margin-top: 0.35rem;
+}
+
+.focus-bracket-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.focus-bracket-card .focus-item-copy {
+    min-height: 0;
+}
+
+.focus-table-wrap {
+    overflow-x: auto;
+}
+
+.focus-table {
+    margin-bottom: 0;
+    font-size: 0.86rem;
+}
+
+.focus-table th {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-light);
+    border-bottom-width: 1px;
+}
+
+.focus-table td {
+    vertical-align: middle;
+}
+
+.focus-inline-note {
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: #F5F8FB;
+    border: 1px dashed #D7E2EC;
+}
+
+.focus-empty-state {
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+@media (max-width: 1200px) {
+    .focus-top-grid,
+    .focus-stat-grid,
+    .focus-bracket-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .focus-top-grid,
+    .focus-split,
+    .focus-stat-grid,
+    .focus-bracket-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .focus-section-header {
+        align-items: start;
+        flex-direction: column;
+    }
+
+    .focus-section-header p {
+        max-width: none;
+        text-align: left;
+    }
+
+    .focus-hero-row,
+    .focus-item-header {
+        flex-direction: column;
+    }
+
+    .focus-card-copy {
+        min-height: 0;
+    }
+}
