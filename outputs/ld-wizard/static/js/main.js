@@ -4,6 +4,8 @@ const dashboardState = {
     drChart: null,
     abFunnelChart: null,
     abBucketSize: 10,
+    lateTrendBucketSize: 50,
+    drChurnMetric: "d3",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -13,7 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     bindDashboardTabs();
     bindRangeControls();
+    bindFocusViewControls();
     bindABControls();
+    bindExportControls();
     initializeDashboard();
 });
 
@@ -97,7 +101,7 @@ async function refreshDashboardData() {
     try {
         const [rangeData, focusData, bracketData, abData] = await Promise.all([
             fetchJSON("/api/data/level-range"),
-            fetchJSON("/api/data/focus-dashboard"),
+            fetchJSON(`/api/data/focus-dashboard?late_trend_bucket_size=${dashboardState.lateTrendBucketSize}&dr_churn_metric=${encodeURIComponent(dashboardState.drChurnMetric)}`),
             fetchJSON("/api/data/bracket-performance"),
             fetchJSON(`/api/data/ab-test?bucket_size=${dashboardState.abBucketSize}`),
         ]);
@@ -116,6 +120,52 @@ async function refreshDashboardData() {
 }
 
 
+function bindFocusViewControls() {
+    const lateTrendInput = document.getElementById("lateTrendBucketSize");
+    const lateTrendBtn = document.getElementById("applyLateTrendBucketBtn");
+    const drSelect = document.getElementById("drChurnType");
+    const drBtn = document.getElementById("applyDrChurnBtn");
+
+    if (lateTrendInput && lateTrendBtn) {
+        lateTrendInput.value = String(dashboardState.lateTrendBucketSize);
+        lateTrendBtn.addEventListener("click", applyLateTrendBucketSize);
+        lateTrendInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                applyLateTrendBucketSize();
+            }
+        });
+    }
+
+    if (drSelect && drBtn) {
+        drSelect.value = dashboardState.drChurnMetric;
+        drBtn.addEventListener("click", applyDrChurnMetric);
+    }
+}
+
+
+function applyLateTrendBucketSize() {
+    const input = document.getElementById("lateTrendBucketSize");
+    if (!input) {
+        return;
+    }
+    const nextValue = Math.max(10, Math.min(100, Number.parseInt(input.value || "50", 10) || 50));
+    dashboardState.lateTrendBucketSize = nextValue;
+    input.value = String(nextValue);
+    refreshDashboardData();
+}
+
+
+function applyDrChurnMetric() {
+    const select = document.getElementById("drChurnType");
+    if (!select) {
+        return;
+    }
+    dashboardState.drChurnMetric = select.value || "d3";
+    refreshDashboardData();
+}
+
+
 function bindABControls() {
     const bucketInput = document.getElementById("abBucketSize");
     const applyBtn = document.getElementById("applyAbBucketBtn");
@@ -131,6 +181,62 @@ function bindABControls() {
             applyABBucketSize();
         }
     });
+}
+
+
+function bindExportControls() {
+    document.getElementById("exportFocusBtn")?.addEventListener("click", () => exportReport("focus"));
+    document.getElementById("exportBracketBtn")?.addEventListener("click", () => exportReport("brackets"));
+    document.getElementById("exportAbBtn")?.addEventListener("click", () => exportReport("ab"));
+    document.getElementById("visualFocusBtn")?.addEventListener("click", () => openVisualReport("focus"));
+    document.getElementById("visualBracketBtn")?.addEventListener("click", () => openVisualReport("brackets"));
+    document.getElementById("visualAbBtn")?.addEventListener("click", () => openVisualReport("ab"));
+}
+
+
+async function exportReport(tabName) {
+    showError("");
+    try {
+        const params = new URLSearchParams({ tab: tabName });
+        if (tabName === "focus") {
+            params.set("late_trend_bucket_size", String(dashboardState.lateTrendBucketSize));
+            params.set("dr_churn_metric", dashboardState.drChurnMetric);
+        }
+        if (tabName === "ab") {
+            params.set("ab_bucket_size", String(dashboardState.abBucketSize));
+        }
+
+        const response = await fetch(`/api/export-report?${params.toString()}`);
+        const payload = await response.json();
+        if (!response.ok) {
+            throw new Error(payload.error || "Unable to export report");
+        }
+
+        const blob = new Blob([payload.content || ""], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = payload.filename || `ld-wizard-${tabName}-report.md`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        showError(error.message || "Unable to export report");
+    }
+}
+
+
+function openVisualReport(tabName) {
+    const params = new URLSearchParams({ tab: tabName });
+    if (tabName === "focus") {
+        params.set("late_trend_bucket_size", String(dashboardState.lateTrendBucketSize));
+        params.set("dr_churn_metric", dashboardState.drChurnMetric);
+    }
+    if (tabName === "ab") {
+        params.set("ab_bucket_size", String(dashboardState.abBucketSize));
+    }
+    window.open(`/report/view?${params.toString()}`, "_blank", "noopener");
 }
 
 
@@ -286,8 +392,11 @@ function setActiveDashboardTab(tabName) {
 
 function renderFocusDashboard(data) {
     const strategic = data.strategic_views || {};
+    const lateTrend = strategic.late_aps_trend || {};
+    const diminishingReturns = strategic.diminishing_returns || {};
+
     renderScopeCard(data.scope, data.summary || {}, data.data_quality || {});
-    renderTopCard("lateTrend", strategic.late_aps_trend, {
+    renderTopCard("lateTrend", lateTrend, {
         stable: "Trend stable",
         upward: "Trend rising",
         downward: "Trend falling",
@@ -297,14 +406,30 @@ function renderFocusDashboard(data) {
         hardening: "Loop hardening",
         softening: "Loop softening",
     });
-    renderTopCard("dr", strategic.diminishing_returns, {
+    renderTopCard("dr", diminishingReturns, {
         stable: "No sharp break",
         danger: "Returns fading",
     });
 
-    renderLateTrend(strategic.late_aps_trend || {});
+    const lateTrendInput = document.getElementById("lateTrendBucketSize");
+    if (lateTrendInput && lateTrend.bucket_size) {
+        lateTrendInput.value = String(lateTrend.bucket_size);
+        dashboardState.lateTrendBucketSize = lateTrend.bucket_size;
+    }
+    setText("lateTrendBucketNote", lateTrend.bucket_size ? `${lateTrend.bucket_size}-level windows` : "Trend unavailable");
+
+    const drSelect = document.getElementById("drChurnType");
+    if (drSelect && diminishingReturns.available_churn_metrics?.length) {
+        drSelect.innerHTML = diminishingReturns.available_churn_metrics.map((item) => `
+            <option value="${escapeHtml(item.key)}"${item.key === diminishingReturns.churn_metric ? " selected" : ""}>${escapeHtml(item.label)}</option>
+        `).join("");
+        dashboardState.drChurnMetric = diminishingReturns.churn_metric || dashboardState.drChurnMetric;
+    }
+    setText("drChurnNote", diminishingReturns.churn_label || "Churn unavailable");
+
+    renderLateTrend(lateTrend);
     renderEndGameLoop(strategic.end_game_loop || {});
-    renderDiminishingReturns(strategic.diminishing_returns || {});
+    renderDiminishingReturns(diminishingReturns);
 }
 
 
@@ -945,7 +1070,7 @@ function renderDiminishingReturns(view) {
                     <tr>
                         <th>APS Bucket</th>
                         <th>Levels</th>
-                        <th>D3 Churn</th>
+                        <th>${escapeHtml(view.churn_label || "Churn")}</th>
                         <th>Revenue / 1k Users</th>
                         <th>Sweet Spot Score</th>
                         <th>Zone</th>
@@ -956,7 +1081,7 @@ function renderDiminishingReturns(view) {
                         <tr>
                             <td>${escapeHtml(bucket.label)}</td>
                             <td>${bucket.count}</td>
-                            <td>${bucket.avg_d3_churn_pct.toFixed(2)}%</td>
+                            <td>${bucket.avg_churn_pct.toFixed(2)}%</td>
                             <td>${bucket.revenue_per_k_users.toFixed(1)}</td>
                             <td>${bucket.sweet_spot_score.toFixed(3)}</td>
                             <td>${pill(bucket.zone_label || bucket.zone, toneForVerdict(bucket.zone_tone || bucket.zone))}</td>
@@ -984,8 +1109,8 @@ function renderDiminishingReturnsChart(view) {
             labels,
             datasets: [
                 {
-                    label: "D3 churn %",
-                    data: view.buckets.map((bucket) => bucket.avg_d3_churn_pct),
+                    label: `${view.churn_label || "Churn"} %`,
+                    data: view.buckets.map((bucket) => bucket.avg_churn_pct),
                     borderColor: "#D45B5B",
                     backgroundColor: "rgba(212, 91, 91, 0.10)",
                     borderWidth: 2,

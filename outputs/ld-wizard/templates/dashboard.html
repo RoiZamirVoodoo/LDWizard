@@ -80,6 +80,12 @@
         </ul>
 
         <div id="focusDashboard" class="focus-dashboard">
+        <div class="d-flex justify-content-end mb-3">
+            <div class="d-flex gap-2">
+                <button id="visualFocusBtn" type="button" class="btn btn-primary btn-sm">Visual Report</button>
+                <button id="exportFocusBtn" type="button" class="btn btn-outline-secondary btn-sm">Markdown</button>
+            </div>
+        </div>
         <section class="focus-top-grid">
             <article class="focus-card focus-card-hero">
                 <div class="focus-card-label">Analysis Scope</div>
@@ -124,7 +130,21 @@
                     <div class="focus-eyebrow">Trend</div>
                     <h2>Late APS Trend</h2>
                 </div>
-                <p>Bucket the scoped funnel into 50-level windows after onboarding and watch for APS drift and slumps.</p>
+                <p>Bucket the scoped funnel after onboarding and watch for APS drift and slumps at the window size you choose.</p>
+            </div>
+            <div class="level-range-bar mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-4 col-md-3">
+                        <label class="form-label mb-1" for="lateTrendBucketSize">Levels Per Trend Window</label>
+                        <input type="number" class="form-control level-range-input" id="lateTrendBucketSize" min="10" max="100" step="5" value="50">
+                    </div>
+                    <div class="col-sm-auto">
+                        <button id="applyLateTrendBucketBtn" type="button" class="btn btn-primary btn-sm">Apply Trend View</button>
+                    </div>
+                    <div class="col-sm-auto">
+                        <span id="lateTrendBucketNote" class="active-filter-badge">50-level windows</span>
+                    </div>
+                </div>
             </div>
             <div class="focus-chart-shell">
                 <canvas id="lateTrendChart"></canvas>
@@ -172,6 +192,26 @@
                 </div>
                 <p>Bucket by APS and identify the safe zone, sweet spot, and overstretched range where extra difficulty stops paying off cleanly.</p>
             </div>
+            <div class="level-range-bar mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-5 col-md-4">
+                        <label class="form-label mb-1" for="drChurnType">Churn Basis</label>
+                        <select id="drChurnType" class="form-select form-select-sm">
+                            <option value="d3">D3 churn</option>
+                            <option value="combined">Combined churn</option>
+                            <option value="session">Session churn</option>
+                            <option value="d7">D7 churn</option>
+                            <option value="predicted_d14">Predicted D14 churn</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-auto">
+                        <button id="applyDrChurnBtn" type="button" class="btn btn-primary btn-sm">Apply Churn Basis</button>
+                    </div>
+                    <div class="col-sm-auto">
+                        <span id="drChurnNote" class="active-filter-badge">D3 churn</span>
+                    </div>
+                </div>
+            </div>
             <div class="focus-chart-shell">
                 <canvas id="drChart"></canvas>
             </div>
@@ -187,6 +227,12 @@
         </div>
 
         <div id="bracketPerformancePanel" class="focus-dashboard" hidden>
+            <div class="d-flex justify-content-end mb-3">
+                <div class="d-flex gap-2">
+                    <button id="visualBracketBtn" type="button" class="btn btn-primary btn-sm">Visual Report</button>
+                    <button id="exportBracketBtn" type="button" class="btn btn-outline-secondary btn-sm">Markdown</button>
+                </div>
+            </div>
             <section class="focus-stat-grid">
                 <article class="focus-stat-card">
                     <div class="focus-card-label">Strongest Bracket</div>
@@ -251,6 +297,12 @@
         </div>
 
         <div id="abTestPanel" class="focus-dashboard" hidden>
+            <div class="d-flex justify-content-end mb-3">
+                <div class="d-flex gap-2">
+                    <button id="visualAbBtn" type="button" class="btn btn-primary btn-sm">Visual Report</button>
+                    <button id="exportAbBtn" type="button" class="btn btn-outline-secondary btn-sm">Markdown</button>
+                </div>
+            </div>
             <section class="focus-section">
                 <div class="focus-section-header">
                     <div>

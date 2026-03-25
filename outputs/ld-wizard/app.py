@@ -1,6 +1,7 @@
 import os
 import json
 import math
+from datetime import datetime
 from collections import Counter
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS_LEVEL_DATA, ALLOWED_EXTENSIONS_LEVEL_PARAMS, MAX_CONTENT_LENGTH, SECRET_KEY
@@ -158,11 +159,10 @@ def _normalize_analysis_scope(payload, df_full):
     return {"start": start, "end": end, "loop_start": loop_start}, df_filtered
 
 
-def _build_focus_dashboard_payload():
+def _build_focus_dashboard_payload(late_trend_bucket_size=50, dr_churn_metric="d3"):
     summary = _app_data.get("summary") or {}
     df_full = _app_data.get("df_full")
     scope = _app_data.get("analysis_scope")
-    strategic_views = _app_data.get("strategic_views") or {}
     if _app_data.get("df") is None or df_full is None:
         return {
             "available": False,
@@ -188,6 +188,16 @@ def _build_focus_dashboard_payload():
                 "diminishing_returns": {"available": False, "reason": "No level-data workbook is loaded."},
             },
         }
+
+    strategic_views = compute_strategic_views(
+        _app_data.get("df"),
+        scope,
+        tutorial_max_level=(_app_data.get("recommendations") or {}).get("tutorial_max_level", 0),
+        options={
+            "late_trend_bucket_size": late_trend_bucket_size,
+            "dr_churn_metric": dr_churn_metric,
+        },
+    )
 
     return {
         "available": True,
@@ -236,6 +246,269 @@ def _build_ab_test_payload(bucket_size=10):
     ))
     payload["meta"] = meta
     return payload
+
+
+def _build_export_payload(tab_name, late_trend_bucket_size=50, dr_churn_metric="d3", ab_bucket_size=10):
+    if tab_name == "focus":
+        content = _build_focus_export_markdown(
+            late_trend_bucket_size=late_trend_bucket_size,
+            dr_churn_metric=dr_churn_metric,
+        )
+    elif tab_name == "brackets":
+        content = _build_bracket_export_markdown()
+    elif tab_name == "ab":
+        content = _build_ab_export_markdown(bucket_size=ab_bucket_size)
+    else:
+        raise ValueError("Unknown export tab.")
+
+    date_label = datetime.now().strftime("%Y-%m-%d")
+    return {
+        "filename": f"ld-wizard-{tab_name}-report-{date_label}.md",
+        "content": content,
+    }
+
+
+def _build_visual_report_context(tab_name, late_trend_bucket_size=50, dr_churn_metric="d3", ab_bucket_size=10):
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    if tab_name == "focus":
+        payload = _build_focus_dashboard_payload(
+            late_trend_bucket_size=late_trend_bucket_size,
+            dr_churn_metric=dr_churn_metric,
+        )
+        title = "Focus Dashboard Report"
+        subtitle = "Stakeholder summary of funnel pacing, late-game APS, loop health, and diminishing returns."
+    elif tab_name == "brackets":
+        payload = _build_bracket_performance_payload()
+        title = "Bracket Performance Report"
+        subtitle = "APS-peer performance, target-tag accuracy, and top/bottom level patterns."
+    elif tab_name == "ab":
+        payload = _build_ab_test_payload(bucket_size=ab_bucket_size)
+        title = "AB Test Report"
+        subtitle = "Experiment comparison across value, funnel health, bracket results, and level movers."
+    else:
+        raise ValueError("Unknown report tab.")
+
+    return {
+        "tab_name": tab_name,
+        "title": title,
+        "subtitle": subtitle,
+        "generated_at": generated_at,
+        "payload": payload,
+        "late_trend_bucket_size": late_trend_bucket_size,
+        "dr_churn_metric": dr_churn_metric,
+        "ab_bucket_size": ab_bucket_size,
+    }
+
+
+def _build_focus_export_markdown(late_trend_bucket_size=50, dr_churn_metric="d3"):
+    payload = _build_focus_dashboard_payload(
+        late_trend_bucket_size=late_trend_bucket_size,
+        dr_churn_metric=dr_churn_metric,
+    )
+    lines = [
+        "# Focus Dashboard Report",
+        "",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+    ]
+
+    if not payload.get("available"):
+        lines.extend([
+            "## Status",
+            payload.get("data_quality", {}).get("maturity_detail", "No level-data workbook is loaded."),
+        ])
+        return "\n".join(lines)
+
+    scope = payload.get("scope") or {}
+    summary = payload.get("summary") or {}
+    strategic = payload.get("strategic_views") or {}
+    late = strategic.get("late_aps_trend") or {}
+    loop = strategic.get("end_game_loop") or {}
+    dr = strategic.get("diminishing_returns") or {}
+
+    lines.extend([
+        "## Scope",
+        f"- Full range: {scope.get('full_range_label', 'Unknown')}",
+        f"- Analysis range: {scope.get('analysis_range_label', 'Unknown')}",
+        f"- Loop start: {scope.get('loop_start_label', 'Not set')}",
+        f"- Total levels in scope: {summary.get('total_levels', 0)}",
+        f"- Avg APS: {_format_report_value(summary.get('avg_aps'), 3)}",
+        f"- Avg completion: {_format_report_value(summary.get('avg_completion_pct'), 1, '%')}",
+        "",
+        "## Late APS Trend",
+        f"- Window size: {late.get('bucket_size', late_trend_bucket_size)} levels",
+    ])
+    if late.get("available"):
+        lines.append(f"- Headline: {late.get('headline')}")
+        lines.append(f"- Target APS band: {_format_report_band(late.get('target_band'))}")
+        for item in (late.get("weak_ranges") or [])[:5]:
+            lines.append(f"- {item.get('range_label')}: {item.get('reason')}")
+    else:
+        lines.append(f"- {late.get('reason', 'Unavailable')}")
+
+    lines.extend(["", "## End Game Loop"])
+    if loop.get("available"):
+        lines.append(f"- Headline: {loop.get('headline')}")
+        lines.append(f"- Baseline APS: {_format_report_value(loop.get('baseline_aps'), 3)}")
+        for item in (loop.get("issues") or [])[:5]:
+            lines.append(f"- {item.get('range_label')}: {item.get('reason')}")
+    else:
+        lines.append(f"- {loop.get('reason', 'Unavailable')}")
+
+    lines.extend(["", "## Diminishing Returns"])
+    if dr.get("available"):
+        lines.append(f"- Churn basis: {dr.get('churn_label', 'Unknown')}")
+        lines.append(f"- Headline: {dr.get('headline')}")
+        zones = dr.get("zones") or {}
+        lines.append(f"- Safe: {zones.get('safe') or 'None'}")
+        lines.append(f"- Sweet spot: {zones.get('sweet_spot') or 'None'}")
+        lines.append(f"- Transition: {zones.get('transition') or 'None'}")
+        lines.append(f"- Overstretched: {zones.get('overstretched') or 'None'}")
+        for item in (dr.get("findings") or [])[:5]:
+            lines.append(f"- {item.get('title')}: {item.get('detail')}")
+    else:
+        lines.append(f"- {dr.get('reason', 'Unavailable')}")
+
+    return "\n".join(lines)
+
+
+def _build_bracket_export_markdown():
+    payload = _build_bracket_performance_payload()
+    lines = [
+        "# Bracket Performance Report",
+        "",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+    ]
+    if not payload.get("available"):
+        lines.extend(["## Status", payload.get("reason", "Bracket performance is unavailable.")])
+        return "\n".join(lines)
+
+    overview = payload.get("overview") or {}
+    tag_accuracy = payload.get("tag_accuracy") or {}
+    lines.extend([
+        "## Overview",
+        f"- Strongest APS peer band: {overview.get('strongest_bracket', 'Unknown')} ({_format_report_value(overview.get('strongest_score'), 3)})",
+        f"- Weakest APS peer band: {overview.get('weakest_bracket', 'Unknown')} ({_format_report_value(overview.get('weakest_score'), 3)})",
+        f"- Outliers: {overview.get('outlier_count', 0)}",
+        f"- Tag accuracy: {_format_report_value(overview.get('tag_accuracy_pct'), 1, '%')}",
+        "",
+        "## Difficulty Tag Accuracy",
+        tag_accuracy.get("headline", "No tag accuracy analysis."),
+    ])
+    for target in (tag_accuracy.get("targets") or []):
+        lines.append(
+            f"- {target.get('target_bracket')}: {target.get('match_count', 0)}/{target.get('total_count', 0)} aligned "
+            f"({_format_report_value(target.get('match_pct'), 1, '%')}) · dominant actual bracket {target.get('dominant_actual_bracket', 'Unknown')}"
+        )
+        for example in (target.get("mismatch_examples") or [])[:2]:
+            lines.append(
+                f"  - L{example.get('level')}: APS {example.get('aps')} behaves like {example.get('actual_bracket')} ({example.get('direction')} than tag)"
+            )
+
+    lines.extend(["", "## Top / Bottom APS Peer Bands"])
+    for bracket in (payload.get("brackets") or []):
+        lines.append(
+            f"- {bracket.get('bracket')}: business {_format_report_value(bracket.get('avg_business_score'), 3)}, "
+            f"avg APS {_format_report_value(bracket.get('avg_aps'), 2)}, revenue/1k {_format_report_value(bracket.get('avg_revenue_per_k_users'), 1)}"
+        )
+        top_levels = ", ".join(f"L{item.get('level')}" for item in (bracket.get("top_levels") or [])[:3]) or "None"
+        bottom_levels = ", ".join(f"L{item.get('level')}" for item in (bracket.get("bottom_levels") or [])[:3]) or "None"
+        lines.append(f"  - Top levels: {top_levels}")
+        lines.append(f"  - Bottom levels: {bottom_levels}")
+
+    return "\n".join(lines)
+
+
+def _build_ab_export_markdown(bucket_size=10):
+    payload = _build_ab_test_payload(bucket_size=bucket_size)
+    lines = [
+        "# AB Test Report",
+        "",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+    ]
+    if not payload.get("available"):
+        lines.extend(["## Status", payload.get("reason", "No AB workbook loaded.")])
+        return "\n".join(lines)
+
+    summary = payload.get("summary") or {}
+    deltas = summary.get("deltas") or {}
+    lines.extend([
+        "## Summary",
+        f"- Control: {payload.get('control_label', 'Control')}",
+        f"- Variant: {payload.get('variant_label', 'Variant')}",
+        f"- Recommendation: {payload.get('recommendation', 'Unknown')}",
+        f"- Headline: {payload.get('headline', 'No summary available.')}",
+        f"- Bucket size: {payload.get('bucket_size', bucket_size)} levels",
+        f"- Revenue per 1k starters delta: {_format_signed_value(deltas.get('revenue_per_k_starters_pct'), 1, '%')}",
+        f"- D3 churn delta: {_format_signed_value(deltas.get('d3_churn_pp'), 2, ' pp')}",
+        f"- End funnel delta: {_format_signed_value(deltas.get('end_funnel_pp'), 2, ' pp')}",
+        "",
+        "## Key Metrics",
+    ])
+    for row in (payload.get("metric_summary") or []):
+        lines.append(
+            f"- {row.get('label')}: {payload.get('control_label')} avg { _format_metric_export(row.get('control_avg'), row.get('type')) }, "
+            f"{payload.get('variant_label')} avg { _format_metric_export(row.get('variant_avg'), row.get('type')) }, "
+            f"delta { _format_metric_export_delta(row.get('avg_delta'), row.get('type')) }"
+        )
+
+    lines.extend(["", "## Bracket Breakdown"])
+    for item in (payload.get("bracket_breakdown") or []):
+        lines.append(
+            f"- {item.get('bracket')}: winner {item.get('winner_label')} · "
+            f"revenue/1k delta {_format_signed_value(item.get('delta_revenue_pct'), 1, '%')} · "
+            f"D3 churn delta {_format_signed_value(item.get('delta_d3_churn_pp'), 2, ' pp')}"
+        )
+
+    lines.extend(["", "## Top Movers"])
+    for item in (payload.get("top_positive_levels") or [])[:5]:
+        lines.append(
+            f"- Positive L{item.get('level')}: revenue/1k {_format_signed_value(item.get('revenue_delta_per_k_users'), 1)} · "
+            f"D3 {_format_signed_value(item.get('churn_delta_pp'), 2, ' pp')}"
+        )
+    for item in (payload.get("top_negative_levels") or [])[:5]:
+        lines.append(
+            f"- Negative L{item.get('level')}: revenue/1k {_format_signed_value(item.get('revenue_delta_per_k_users'), 1)} · "
+            f"D3 {_format_signed_value(item.get('churn_delta_pp'), 2, ' pp')}"
+        )
+
+    return "\n".join(lines)
+
+
+def _format_report_value(value, digits=2, suffix=""):
+    if value is None:
+        return "n/a"
+    return f"{float(value):.{digits}f}{suffix}"
+
+
+def _format_signed_value(value, digits=2, suffix=""):
+    if value is None:
+        return "n/a"
+    number = float(value)
+    return f"{number:+.{digits}f}{suffix}"
+
+
+def _format_report_band(target_band):
+    if not target_band:
+        return "n/a"
+    return f"{_format_report_value(target_band.get('min'), 2)}–{_format_report_value(target_band.get('max'), 2)} APS"
+
+
+def _format_metric_export(value, metric_type):
+    if value is None:
+        return "n/a"
+    if metric_type == "pct":
+        return f"{float(value):.2f}%"
+    return f"{float(value):.1f}"
+
+
+def _format_metric_export_delta(value, metric_type):
+    if value is None:
+        return "n/a"
+    suffix = " pp" if metric_type == "pct" else ""
+    return _format_signed_value(value, 2 if metric_type == "pct" else 1, suffix)
 
 
 def _build_bracket_performance_payload():
@@ -748,7 +1021,15 @@ def api_recommendations():
 @app.route("/api/data/focus-dashboard")
 def api_focus_dashboard():
     """Focused dashboard payload with the smallest high-signal analysis surface."""
-    return json.dumps(_build_focus_dashboard_payload())
+    try:
+        late_trend_bucket_size = int(request.args.get("late_trend_bucket_size", 50))
+    except (TypeError, ValueError):
+        late_trend_bucket_size = 50
+    dr_churn_metric = str(request.args.get("dr_churn_metric", "d3"))
+    return json.dumps(_build_focus_dashboard_payload(
+        late_trend_bucket_size=late_trend_bucket_size,
+        dr_churn_metric=dr_churn_metric,
+    ))
 
 
 @app.route("/api/data/bracket-performance")
@@ -773,6 +1054,58 @@ def api_main_breakdown():
     if _app_data["main_breakdown"] is None:
         return json.dumps({"error": "No data loaded"}), 400
     return json.dumps(_app_data["main_breakdown"])
+
+
+@app.route("/api/export-report")
+def api_export_report():
+    tab_name = str(request.args.get("tab", "focus"))
+    try:
+        late_trend_bucket_size = int(request.args.get("late_trend_bucket_size", 50))
+    except (TypeError, ValueError):
+        late_trend_bucket_size = 50
+    dr_churn_metric = str(request.args.get("dr_churn_metric", "d3"))
+    try:
+        ab_bucket_size = int(request.args.get("ab_bucket_size", 10))
+    except (TypeError, ValueError):
+        ab_bucket_size = 10
+
+    try:
+        payload = _build_export_payload(
+            tab_name=tab_name,
+            late_trend_bucket_size=late_trend_bucket_size,
+            dr_churn_metric=dr_churn_metric,
+            ab_bucket_size=ab_bucket_size,
+        )
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)}), 400
+
+    return json.dumps(payload)
+
+
+@app.route("/report/view")
+def view_report():
+    tab_name = str(request.args.get("tab", "focus"))
+    try:
+        late_trend_bucket_size = int(request.args.get("late_trend_bucket_size", 50))
+    except (TypeError, ValueError):
+        late_trend_bucket_size = 50
+    dr_churn_metric = str(request.args.get("dr_churn_metric", "d3"))
+    try:
+        ab_bucket_size = int(request.args.get("ab_bucket_size", 10))
+    except (TypeError, ValueError):
+        ab_bucket_size = 10
+
+    try:
+        context = _build_visual_report_context(
+            tab_name=tab_name,
+            late_trend_bucket_size=late_trend_bucket_size,
+            dr_churn_metric=dr_churn_metric,
+            ab_bucket_size=ab_bucket_size,
+        )
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)}), 400
+
+    return render_template("export_report.html", **context)
 
 
 @app.route("/api/reanalyze", methods=["POST"])

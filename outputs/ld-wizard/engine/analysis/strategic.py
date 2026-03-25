@@ -14,6 +14,7 @@ DEFAULT_LATE_APS_TARGET_MIN = 1.9
 DEFAULT_LATE_APS_TARGET_MAX = 2.4
 WINDOW_SIZE = 50
 OPTIMIZATION_WINDOW_SIZE = 10
+DEFAULT_DR_CHURN_METRIC = "d3"
 APS_BUCKETS = [
     (1.0, 1.5),
     (1.5, 2.0),
@@ -26,9 +27,16 @@ APS_BUCKETS = [
     (10.0, 15.0),
     (15.0, None),
 ]
+CHURN_METRIC_OPTIONS = {
+    "session": {"column": "churn", "label": "Session churn"},
+    "combined": {"column": "combined_churn", "label": "Combined churn"},
+    "d3": {"column": "churn_3d", "label": "D3 churn"},
+    "d7": {"column": "churn_7d", "label": "D7 churn"},
+    "predicted_d14": {"column": "predicted_d14_churn", "label": "Predicted D14 churn"},
+}
 
 
-def compute_strategic_views(df, scope, tutorial_max_level=0):
+def compute_strategic_views(df, scope, tutorial_max_level=0, options=None):
     if df is None or len(df) == 0:
         return {
             "late_aps_trend": {"available": False, "reason": "No data loaded."},
@@ -43,15 +51,18 @@ def compute_strategic_views(df, scope, tutorial_max_level=0):
     }
     df = df.copy().sort_values("level").reset_index(drop=True)
     onboarding_cutoff = max(ONBOARDING_LEVELS, int(tutorial_max_level or 0))
+    options = options or {}
+    late_trend_bucket_size = max(10, min(int(options.get("late_trend_bucket_size") or WINDOW_SIZE), 100))
+    dr_churn_metric = str(options.get("dr_churn_metric") or DEFAULT_DR_CHURN_METRIC)
 
     return {
-        "late_aps_trend": compute_late_aps_trend(df, current_scope, onboarding_cutoff),
+        "late_aps_trend": compute_late_aps_trend(df, current_scope, onboarding_cutoff, bucket_size=late_trend_bucket_size),
         "end_game_loop": compute_end_game_loop(df, current_scope),
-        "diminishing_returns": compute_diminishing_returns_view(df, current_scope),
+        "diminishing_returns": compute_diminishing_returns_view(df, current_scope, churn_metric=dr_churn_metric),
     }
 
 
-def compute_late_aps_trend(df, scope, onboarding_cutoff):
+def compute_late_aps_trend(df, scope, onboarding_cutoff, bucket_size=WINDOW_SIZE):
     start_level = max(int(scope["start"]), onboarding_cutoff + 1)
     end_level = int(scope["end"])
 
@@ -62,7 +73,7 @@ def compute_late_aps_trend(df, scope, onboarding_cutoff):
             "reason": "Not enough post-onboarding levels in the selected range.",
         }
 
-    buckets = _bucket_level_windows(subset, start_level, end_level, window_size=WINDOW_SIZE)
+    buckets = _bucket_level_windows(subset, start_level, end_level, window_size=bucket_size)
     optimization_buckets = _bucket_level_windows(
         subset,
         start_level,
@@ -103,7 +114,7 @@ def compute_late_aps_trend(df, scope, onboarding_cutoff):
             if delta <= -0.35:
                 weak_ranges.append({
                     "range_label": bucket["range_label"],
-                    "reason": f"APS drops by {abs(delta):.2f} vs the previous 50-level window.",
+                    "reason": f"APS drops by {abs(delta):.2f} vs the previous {bucket_size}-level window.",
                     "severity": "high",
                 })
         previous = bucket
@@ -125,7 +136,7 @@ def compute_late_aps_trend(df, scope, onboarding_cutoff):
         "verdict": verdict,
         "onboarding_cutoff": onboarding_cutoff,
         "target_band": target_band,
-        "bucket_size": WINDOW_SIZE,
+        "bucket_size": bucket_size,
         "buckets": buckets,
         "weak_ranges": weak_ranges[:6],
     }
@@ -209,7 +220,7 @@ def compute_end_game_loop(df, scope):
     }
 
 
-def compute_diminishing_returns_view(df, scope):
+def compute_diminishing_returns_view(df, scope, churn_metric=DEFAULT_DR_CHURN_METRIC):
     start_level = int(scope["start"])
     end_level = int(scope["end"])
     subset = df[(df["level"] >= start_level) & (df["level"] <= end_level)].copy()
@@ -219,7 +230,8 @@ def compute_diminishing_returns_view(df, scope):
             "reason": "Not enough levels in the selected range for diminishing-returns analysis.",
         }
 
-    buckets = _build_aps_buckets(subset)
+    resolved_metric, available_metrics = _resolve_churn_metric(subset, churn_metric)
+    buckets = _build_aps_buckets(subset, resolved_metric["column"])
     valid = [bucket for bucket in buckets if bucket["count"] >= 3]
     if len(valid) < 3:
         return {
@@ -236,54 +248,85 @@ def compute_diminishing_returns_view(df, scope):
         )
 
     for index, bucket in enumerate(valid):
-        bucket["smooth_d3_churn_pct"] = round(_neighbor_average(valid, index, "avg_d3_churn_pct"), 3)
+        bucket["smooth_churn_pct"] = round(_neighbor_average(valid, index, "avg_churn_pct"), 3)
         bucket["smooth_iap_users_pct"] = round(_neighbor_average(valid, index, "avg_iap_users_pct"), 3)
         bucket["smooth_iap_composite"] = round(_neighbor_average(valid, index, "iap_composite"), 4)
         bucket["smooth_revenue_per_k_users"] = round(_neighbor_average(valid, index, "revenue_per_k_users"), 3)
+        bucket["smooth_sink_pct"] = round(_neighbor_average(valid, index, "avg_sink_pct"), 3)
 
     revenue_values = [bucket["smooth_revenue_per_k_users"] for bucket in valid]
     payer_values = [bucket["smooth_iap_users_pct"] for bucket in valid]
+    sink_values = [bucket["smooth_sink_pct"] for bucket in valid]
     user_values = [bucket.get("avg_users", 0.0) for bucket in valid]
-    churn_values = [bucket["smooth_d3_churn_pct"] for bucket in valid]
+    churn_values = [bucket["smooth_churn_pct"] for bucket in valid]
 
     revenue_low, revenue_high = _percentile(revenue_values, 0.10), _percentile(revenue_values, 0.90)
     payer_low, payer_high = _percentile(payer_values, 0.10), _percentile(payer_values, 0.90)
+    sink_low, sink_high = _percentile(sink_values, 0.10), _percentile(sink_values, 0.90)
     users_low, users_high = _percentile(user_values, 0.20), _percentile(user_values, 0.90)
-    churn_low, churn_high = _percentile(churn_values, 0.10), _percentile(churn_values, 0.85)
+    churn_floor = max(_percentile(churn_values, 0.10), 0.05)
 
     for bucket in valid:
         revenue_strength = _scale_to_unit(bucket["smooth_revenue_per_k_users"], revenue_low, revenue_high)
         payer_strength = _scale_to_unit(bucket["smooth_iap_users_pct"], payer_low, payer_high)
+        sink_strength = _scale_to_unit(bucket["smooth_sink_pct"], sink_low, sink_high)
         volume_strength = _scale_to_unit(bucket.get("avg_users", 0.0), users_low, users_high)
         monetization_strength = (
-            0.65 * revenue_strength + 0.20 * payer_strength + 0.15 * bucket["smooth_iap_composite"]
+            0.55 * revenue_strength
+            + 0.20 * payer_strength
+            + 0.10 * sink_strength
+            + 0.15 * bucket["smooth_iap_composite"]
         )
-        # Treat high churn as a steep tax, not a gentle tradeoff.
-        churn_gate = 1.0 / (1.0 + math.exp((bucket["smooth_d3_churn_pct"] - 2.2) / 0.45))
+        churn_ratio = bucket["smooth_churn_pct"] / churn_floor if churn_floor > 0 else 1.0
+        churn_cost = max(churn_ratio - 1.0, 0.0)
+        churn_efficiency = 1.0 / (1.0 + churn_cost ** 1.25)
+        bucket["monetization_strength"] = round(monetization_strength, 4)
+        bucket["churn_ratio"] = round(churn_ratio, 4)
+        bucket["churn_efficiency"] = round(churn_efficiency, 4)
         bucket["sweet_spot_score"] = round(
-            monetization_strength * churn_gate * (0.85 + 0.15 * volume_strength),
+            monetization_strength * churn_efficiency * (0.80 + 0.20 * volume_strength),
             4,
         )
 
     for index, bucket in enumerate(valid):
+        if index == 0:
+            bucket["shock_penalty"] = 1.0
+            bucket["raw_revenue_lift_pct"] = 0.0
+            bucket["raw_churn_lift_pct"] = 0.0
+            continue
+
+        previous = valid[index - 1]
+        revenue_lift = max(bucket["revenue_per_k_users"] - previous["revenue_per_k_users"], 0.0) / max(previous["revenue_per_k_users"], 1.0)
+        churn_lift = max(bucket["avg_churn_pct"] - previous["avg_churn_pct"], 0.0) / max(previous["avg_churn_pct"], 0.05)
+        shock_gap = max(churn_lift - revenue_lift, 0.0)
+        shock_penalty = 1.0 / (1.0 + shock_gap * 1.35)
+        bucket["shock_penalty"] = round(shock_penalty, 4)
+        bucket["raw_revenue_lift_pct"] = round(revenue_lift * 100, 2)
+        bucket["raw_churn_lift_pct"] = round(churn_lift * 100, 2)
+        bucket["sweet_spot_score"] = round(bucket["sweet_spot_score"] * shock_penalty, 4)
+
+    for index, bucket in enumerate(valid):
         bucket["smooth_score"] = round(_neighbor_average(valid, index, "sweet_spot_score"), 4)
+        bucket["smooth_churn_ratio"] = round(_neighbor_average(valid, index, "churn_ratio"), 4)
+        bucket["smooth_monetization_strength"] = round(_neighbor_average(valid, index, "monetization_strength"), 4)
 
     peak_index = max(range(len(valid)), key=lambda idx: valid[idx]["smooth_score"])
     peak_bucket = valid[peak_index]
     peak_score = peak_bucket["smooth_score"]
-    peak_churn = max(peak_bucket["smooth_d3_churn_pct"], 0.01)
+    peak_churn_ratio = max(peak_bucket["smooth_churn_ratio"], 0.01)
+    peak_monetization = max(peak_bucket["smooth_monetization_strength"], 0.01)
 
     sweet_start = peak_index
     sweet_end = peak_index
-    while sweet_start > 0 and valid[sweet_start - 1]["smooth_score"] >= peak_score * 0.88:
+    while sweet_start > 0 and valid[sweet_start - 1]["smooth_score"] >= peak_score * 0.90:
         sweet_start -= 1
-    while sweet_end < len(valid) - 1 and valid[sweet_end + 1]["smooth_score"] >= peak_score * 0.88:
+    while sweet_end < len(valid) - 1 and valid[sweet_end + 1]["smooth_score"] >= peak_score * 0.90:
         sweet_end += 1
 
     safe_start = sweet_start
     while safe_start > 0:
         candidate = valid[safe_start - 1]
-        if candidate["smooth_score"] >= peak_score * 0.70 and candidate["smooth_d3_churn_pct"] <= peak_churn * 1.20:
+        if candidate["smooth_score"] >= peak_score * 0.72 and candidate["smooth_churn_ratio"] <= peak_churn_ratio * 1.10:
             safe_start -= 1
             continue
         break
@@ -293,16 +336,17 @@ def compute_diminishing_returns_view(df, scope):
     for index in range(sweet_end + 1, len(valid) - 1):
         current = valid[index]
         following = valid[index + 1]
-        score_falling = current["smooth_score"] <= peak_score * 0.55 and following["smooth_score"] <= peak_score * 0.55
-        churn_elevated = current["smooth_d3_churn_pct"] >= peak_churn * 1.25 and following["smooth_d3_churn_pct"] >= peak_churn * 1.25
-        if score_falling and churn_elevated:
+        score_falling = current["smooth_score"] <= peak_score * 0.78 and following["smooth_score"] <= peak_score * 0.78
+        churn_elevated = current["smooth_churn_ratio"] >= peak_churn_ratio * 1.20 and following["smooth_churn_ratio"] >= peak_churn_ratio * 1.20
+        monetization_flat = current["smooth_monetization_strength"] <= peak_monetization * 1.05 and following["smooth_monetization_strength"] <= peak_monetization * 1.05
+        if score_falling and churn_elevated and monetization_flat:
             overstretched_start = index
             break
 
     if overstretched_start is None:
         for index in range(sweet_end + 1, len(valid)):
             current = valid[index]
-            if current["smooth_score"] <= peak_score * 0.45 and current["smooth_d3_churn_pct"] >= peak_churn * 1.35:
+            if current["smooth_score"] <= peak_score * 0.60 and current["smooth_churn_ratio"] >= peak_churn_ratio * 1.30:
                 overstretched_start = index
                 break
 
@@ -348,25 +392,27 @@ def compute_diminishing_returns_view(df, scope):
         {
             "title": "Sweet spot",
             "detail": (
-                f"APS {sweet_range_label} combines the strongest revenue-per-1k signal with manageable D3 churn."
+                f"APS {sweet_range_label} combines the strongest revenue-per-1k and sink signal with manageable D3 churn."
+                .replace("D3 churn", resolved_metric["label"])
             ),
         }
     ]
     if safe_range_label:
         findings.append({
             "title": "Safe runway",
-            "detail": f"APS {safe_range_label} still monetizes well before churn meaningfully accelerates.",
+            "detail": f"APS {safe_range_label} still monetizes well before {resolved_metric['label'].lower()} meaningfully accelerates.",
         })
     if transition_range_label:
         findings.append({
             "title": "Riskier runway",
-            "detail": f"APS {transition_range_label} can still monetize, but churn is climbing faster than in the sweet spot.",
+            "detail": f"APS {transition_range_label} can still monetize, but {resolved_metric['label'].lower()} is climbing faster than in the sweet spot.",
         })
     if overstretched_range_label:
         findings.append({
             "title": "Overstretched zone",
             "detail": (
                 f"APS {overstretched_range_label} keeps difficulty rising after the sweet spot while revenue density flattens and churn stays higher."
+                .replace("churn", resolved_metric["label"].lower())
             ),
         })
     else:
@@ -398,14 +444,17 @@ def compute_diminishing_returns_view(df, scope):
         "verdict": verdict,
         "buckets": valid,
         "findings": findings,
+        "churn_metric": resolved_metric["key"],
+        "churn_label": resolved_metric["label"],
+        "available_churn_metrics": available_metrics,
         "zones": {
             "safe": safe_range_label,
             "sweet_spot": sweet_range_label,
             "transition": transition_range_label,
             "overstretched": overstretched_range_label,
         },
-        "metric_note": "Using smoothed revenue per 1k users, payer rate, and D3 churn to find a sweet spot before overstretch.",
-        "metric_tag": "Revenue/churn sweet spot",
+        "metric_note": f"Using smoothed revenue per 1k users, payer rate, sink signal, and {resolved_metric['label'].lower()} to find a sweet spot before overstretch.",
+        "metric_tag": f"Revenue/{resolved_metric['label']} sweet spot",
     }
 
 
@@ -439,7 +488,7 @@ def _bucket_level_windows(df, start_level, end_level, window_size=WINDOW_SIZE):
     return buckets
 
 
-def _build_aps_buckets(df):
+def _build_aps_buckets(df, churn_col):
     buckets = []
     for low, high in APS_BUCKETS:
         if high is None:
@@ -458,7 +507,7 @@ def _build_aps_buckets(df):
             "high_aps": None if high is None else float(high),
             "count": int(len(subset)),
             "avg_users": round(float(subset["users"].mean()), 2) if "users" in subset.columns else 0.0,
-            "avg_d3_churn_pct": round(float(subset["churn_3d"].mean()) * 100, 3) if "churn_3d" in subset.columns else 0.0,
+            "avg_churn_pct": round(float(subset[churn_col].mean()) * 100, 3) if churn_col in subset.columns else 0.0,
             "avg_iap_users_pct": round(float(subset["iap_users_pct"].mean()) * 100, 3) if "iap_users_pct" in subset.columns else 0.0,
             "avg_iap_revenue": round(float(subset["iap_revenue"].mean()), 3) if "iap_revenue" in subset.columns else 0.0,
             "avg_iap_transactions": round(float(subset["iap_transactions"].mean()), 3) if "iap_transactions" in subset.columns else 0.0,
@@ -481,7 +530,7 @@ def _attach_iap_composite(buckets):
         norm_iap_revenue = bucket.get("avg_iap_revenue", 0) / max_iap_revenue if max_iap_revenue else 0.0
         norm_iap_transactions = bucket.get("avg_iap_transactions", 0) / max_iap_transactions if max_iap_transactions else 0.0
         bucket["iap_composite"] = round((norm_iap_users + norm_iap_revenue + norm_iap_transactions) / 3.0, 4)
-        bucket["efficiency_score"] = bucket["iap_composite"] / max(bucket.get("avg_d3_churn_pct", 0), 0.05)
+        bucket["efficiency_score"] = bucket["iap_composite"] / max(bucket.get("avg_churn_pct", bucket.get("avg_d3_churn_pct", 0)), 0.05)
 
     return buckets
 
@@ -606,3 +655,26 @@ def _format_bucket_zone_range(buckets):
     if high is None:
         return f"{low:.1f}+"
     return f"{low:.1f}\u2013{high:.1f}"
+
+
+def _resolve_churn_metric(df, requested_key):
+    available = []
+    for key, config in CHURN_METRIC_OPTIONS.items():
+        column = config["column"]
+        if column in df.columns and df[column].notna().any():
+            available.append({
+                "key": key,
+                "label": config["label"],
+                "column": column,
+            })
+
+    if not available:
+        fallback = {"key": "combined", "label": "Combined churn", "column": "combined_churn"}
+        return fallback, [fallback]
+
+    selected = next((item for item in available if item["key"] == requested_key), None)
+    if selected:
+        return selected, available
+
+    default = next((item for item in available if item["key"] == DEFAULT_DR_CHURN_METRIC), None)
+    return default or available[0], available
