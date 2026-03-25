@@ -2,52 +2,54 @@
 
 {% block content %}
 <div class="upload-container">
-    <div class="upload-card">
-        <h2>Upload Game Data</h2>
-        <p class="subtitle">Select your Level Data file, optional Level Parameters, and optional AB workbook to begin analysis.</p>
+    <div class="upload-stack">
+        <div class="upload-card">
+            <h2>Upload Game Data</h2>
+            <p class="subtitle">Select your Level Data file, optional Level Parameters, and optional AB workbook to begin analysis.</p>
 
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-            <div class="file-input-group">
-                <label for="level_data">Level Data</label>
-                <input type="file" class="form-control" id="level_data" name="level_data" accept=".xlsx,.xls,.csv" required>
-                <div class="form-text">Analytics export file (.xlsx or .csv) — contains player metrics per level</div>
-            </div>
+            <form id="fullUploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+                <div class="file-input-group">
+                    <label for="level_data">Level Data</label>
+                    <input type="file" class="form-control" id="level_data" name="level_data" accept=".xlsx,.xls,.csv" required>
+                    <div class="form-text">Analytics export file (.xlsx or .csv) — contains player metrics per level</div>
+                </div>
 
-            <div class="file-input-group">
-                <label for="level_params">Level Parameters <span class="text-muted" style="font-weight: normal; font-size: 0.85em;">(Optional)</span></label>
-                <input type="file" class="form-control" id="level_params" name="level_params" accept=".xlsx,.xls,.csv">
-                <div class="form-text">Level properties export (.xlsx or .csv) — contains design parameters per level. If omitted, mechanics analysis will be unavailable.</div>
-            </div>
+                <div class="file-input-group">
+                    <label for="level_params">Level Parameters <span class="text-muted" style="font-weight: normal; font-size: 0.85em;">(Optional)</span></label>
+                    <input type="file" class="form-control" id="level_params" name="level_params" accept=".xlsx,.xls,.csv">
+                    <div class="form-text">Level properties export (.xlsx or .csv) — contains design parameters per level. If omitted, mechanics analysis will be unavailable.</div>
+                </div>
 
-            <div class="file-input-group">
-                <label for="ab_test_file">AB Test Workbook <span class="text-muted" style="font-weight: normal; font-size: 0.85em;">(Optional)</span></label>
-                <input type="file" class="form-control" id="ab_test_file" name="ab_test_file" accept=".xlsx,.xls,.csv">
-                <div class="form-text">Experiment export with side-by-side control and variant metrics per level. If omitted, the AB Tests tab will stay unavailable.</div>
-            </div>
+                <div class="file-input-group">
+                    <label for="ab_test_file">AB Test Workbook <span class="text-muted" style="font-weight: normal; font-size: 0.85em;">(Optional)</span></label>
+                    <input type="file" class="form-control" id="ab_test_file" name="ab_test_file" accept=".xlsx,.xls,.csv">
+                    <div class="form-text">Experiment export with side-by-side control and variant metrics per level. If omitted, the AB Tests tab will stay unavailable.</div>
+                </div>
 
-            <div class="divider"></div>
+                <div class="divider"></div>
 
-            <div class="d-grid">
-                <button type="submit" class="btn btn-primary">Analyze</button>
-            </div>
-        </form>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Analyze Full Dataset</button>
+                </div>
+            </form>
+        </div>
 
-        <div class="divider"></div>
+        <div class="upload-card upload-card-ab-only">
+            <h2>Analyze AB Test Only</h2>
+            <p class="subtitle">Use this when you only want to compare cohorts without loading the full level-analysis dataset.</p>
 
-        <h2 style="margin-top: 0;">Analyze AB Test Only</h2>
-        <p class="subtitle" style="margin-bottom: 1rem;">Use this when you only want to compare cohorts without loading the full level-analysis dataset.</p>
+            <form id="abOnlyUploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+                <div class="file-input-group">
+                    <label for="ab_test_only_file">AB Test Workbook</label>
+                    <input type="file" class="form-control" id="ab_test_only_file" name="ab_test_file" accept=".xlsx,.xls,.csv" required>
+                    <div class="form-text">Experiment export with control and test columns per level.</div>
+                </div>
 
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-            <div class="file-input-group">
-                <label for="ab_test_only_file">AB Test Workbook</label>
-                <input type="file" class="form-control" id="ab_test_only_file" name="ab_test_file" accept=".xlsx,.xls,.csv" required>
-                <div class="form-text">Experiment export with control and test columns per level.</div>
-            </div>
-
-            <div class="d-grid">
-                <button type="submit" class="btn btn-outline-secondary">Analyze AB Test Only</button>
-            </div>
-        </form>
+                <div class="d-grid">
+                    <button type="submit" form="abOnlyUploadForm" class="btn btn-primary">Analyze AB Test Only</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

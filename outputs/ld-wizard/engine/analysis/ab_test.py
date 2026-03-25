@@ -8,28 +8,31 @@ import pandas as pd
 
 from engine.parser import DIFFICULTY_ORDER
 
+AB_METRICS = [
+    {"key": "churn", "label": "Session churn", "type": "pct"},
+    {"key": "churn_3d", "label": "D3 churn", "type": "pct"},
+    {"key": "iap_users_pct", "label": "% IAP users", "type": "pct"},
+    {"key": "iap_revenue", "label": "IAP revenue", "type": "currency"},
+    {"key": "ftd_pct", "label": "FTD", "type": "pct"},
+]
 
-def compute_ab_test_analysis(df, meta):
+
+def compute_ab_test_analysis(df, meta, level_bucket_size=10):
     if df is None or len(df) == 0:
         return {"available": False, "reason": "No AB test workbook loaded."}
 
     control_label = (meta or {}).get("control_label", "Control")
     variant_label = (meta or {}).get("variant_label", "Variant")
     working = df.copy().sort_values("level").reset_index(drop=True)
+    bucket_size = max(1, min(int(level_bucket_size or 10), 50))
 
     summary = _cohort_summary(working)
     if summary is None:
         return {"available": False, "reason": "The AB workbook is missing required cohort metrics."}
 
-    funnel_curve = []
-    for _, row in working.iterrows():
-        funnel_curve.append({
-            "level": int(row["level"]),
-            "control_funnel_pct": _pct_value(row.get("control_funnel_pct")),
-            "variant_funnel_pct": _pct_value(row.get("variant_funnel_pct")),
-            "control_d3_churn_pct": _pct_value(row.get("control_churn_3d")),
-            "variant_d3_churn_pct": _pct_value(row.get("variant_churn_3d")),
-        })
+    funnel_curve = _bucketed_funnel_curve(working, bucket_size)
+    metric_summary = _metric_summary(working)
+    bucket_metrics = _bucketed_metric_breakdown(working, bucket_size)
 
     level_swings = []
     for _, row in working.iterrows():
@@ -91,7 +94,10 @@ def compute_ab_test_analysis(df, meta):
         "recommendation": recommendation,
         "control_label": control_label,
         "variant_label": variant_label,
+        "bucket_size": bucket_size,
         "summary": summary,
+        "metric_summary": metric_summary,
+        "bucket_metrics": bucket_metrics,
         "findings": findings,
         "funnel_curve": funnel_curve,
         "bracket_breakdown": bracket_breakdown,
@@ -169,6 +175,34 @@ def _cohort_summary(df):
     }
 
 
+def _metric_summary(df):
+    rows = []
+    for metric in AB_METRICS:
+        key = metric["key"]
+        control_series = pd.to_numeric(df.get(f"control_{key}", pd.Series(dtype=float)), errors="coerce")
+        variant_series = pd.to_numeric(df.get(f"variant_{key}", pd.Series(dtype=float)), errors="coerce")
+        if control_series.dropna().empty and variant_series.dropna().empty:
+            continue
+
+        control_avg = _mean(control_series)
+        control_median = _median(control_series)
+        variant_avg = _mean(variant_series)
+        variant_median = _median(variant_series)
+
+        rows.append({
+            "key": key,
+            "label": metric["label"],
+            "type": metric["type"],
+            "control_avg": _display_value(control_avg, metric["type"]),
+            "control_median": _display_value(control_median, metric["type"]),
+            "variant_avg": _display_value(variant_avg, metric["type"]),
+            "variant_median": _display_value(variant_median, metric["type"]),
+            "avg_delta": _display_delta(control_avg, variant_avg, metric["type"]),
+            "median_delta": _display_delta(control_median, variant_median, metric["type"]),
+        })
+    return rows
+
+
 def _bracket_result(subset, bracket, control_label, variant_label):
     control_users = subset.get("control_users", pd.Series(dtype=float)).fillna(0)
     variant_users = subset.get("variant_users", pd.Series(dtype=float)).fillna(0)
@@ -205,6 +239,68 @@ def _bracket_result(subset, bracket, control_label, variant_label):
         "delta_revenue_pct": round(_relative_lift(control_rev_per_k, variant_rev_per_k), 2),
         "delta_d3_churn_pp": round((variant_d3 or 0) - (control_d3 or 0), 3),
     }
+
+
+def _bucketed_funnel_curve(df, bucket_size):
+    buckets = []
+    for bucket in _level_buckets(df, bucket_size):
+        subset = bucket["subset"]
+        buckets.append({
+            "label": bucket["label"],
+            "start_level": bucket["start_level"],
+            "end_level": bucket["end_level"],
+            "control_funnel_pct": _pct_value(_weighted_average(subset.get("control_funnel_pct"), subset.get("control_users"))),
+            "variant_funnel_pct": _pct_value(_weighted_average(subset.get("variant_funnel_pct"), subset.get("variant_users"))),
+            "control_d3_churn_pct": _pct_value(_weighted_average(subset.get("control_churn_3d"), subset.get("control_users"))),
+            "variant_d3_churn_pct": _pct_value(_weighted_average(subset.get("variant_churn_3d"), subset.get("variant_users"))),
+        })
+    return buckets
+
+
+def _bucketed_metric_breakdown(df, bucket_size):
+    rows = []
+    for bucket in _level_buckets(df, bucket_size):
+        subset = bucket["subset"]
+        row = {
+            "label": bucket["label"],
+            "start_level": bucket["start_level"],
+            "end_level": bucket["end_level"],
+            "level_count": int(len(subset)),
+        }
+        for metric in AB_METRICS:
+            key = metric["key"]
+            control_series = pd.to_numeric(subset.get(f"control_{key}", pd.Series(dtype=float)), errors="coerce")
+            variant_series = pd.to_numeric(subset.get(f"variant_{key}", pd.Series(dtype=float)), errors="coerce")
+            row[key] = {
+                "type": metric["type"],
+                "control_avg": _display_value(_mean(control_series), metric["type"]),
+                "control_median": _display_value(_median(control_series), metric["type"]),
+                "variant_avg": _display_value(_mean(variant_series), metric["type"]),
+                "variant_median": _display_value(_median(variant_series), metric["type"]),
+            }
+        rows.append(row)
+    return rows
+
+
+def _level_buckets(df, bucket_size):
+    buckets = []
+    if df is None or df.empty:
+        return buckets
+
+    working = df.sort_values("level").reset_index(drop=True)
+    for start_index in range(0, len(working), bucket_size):
+        subset = working.iloc[start_index:start_index + bucket_size].copy()
+        if subset.empty:
+            continue
+        start_level = int(subset["level"].iloc[0])
+        end_level = int(subset["level"].iloc[-1])
+        buckets.append({
+            "subset": subset,
+            "start_level": start_level,
+            "end_level": end_level,
+            "label": f"L{start_level}" if start_level == end_level else f"L{start_level}\u2013L{end_level}",
+        })
+    return buckets
 
 
 def _headline(summary, control_label, variant_label):
@@ -288,6 +384,41 @@ def _weighted_average(values, weights):
     if weights.sum() <= 0:
         return float(values.mean())
     return float((values * weights).sum() / weights.sum())
+
+
+def _mean(series):
+    if series is None:
+        return None
+    clean = pd.to_numeric(series, errors="coerce").dropna()
+    if clean.empty:
+        return None
+    return float(clean.mean())
+
+
+def _median(series):
+    if series is None:
+        return None
+    clean = pd.to_numeric(series, errors="coerce").dropna()
+    if clean.empty:
+        return None
+    return float(clean.median())
+
+
+def _display_value(value, metric_type):
+    if value is None:
+        return None
+    if metric_type == "pct":
+        return round(float(value) * 100, 3)
+    return round(float(value), 3)
+
+
+def _display_delta(control_value, variant_value, metric_type):
+    if control_value is None or variant_value is None:
+        return None
+    delta = float(variant_value) - float(control_value)
+    if metric_type == "pct":
+        return round(delta * 100, 3)
+    return round(delta, 3)
 
 
 def _last_non_null(series):

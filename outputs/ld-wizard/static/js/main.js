@@ -3,6 +3,7 @@ const dashboardState = {
     loopChart: null,
     drChart: null,
     abFunnelChart: null,
+    abBucketSize: 10,
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     bindDashboardTabs();
     bindRangeControls();
+    bindABControls();
     initializeDashboard();
 });
 
@@ -97,7 +99,7 @@ async function refreshDashboardData() {
             fetchJSON("/api/data/level-range"),
             fetchJSON("/api/data/focus-dashboard"),
             fetchJSON("/api/data/bracket-performance"),
-            fetchJSON("/api/data/ab-test"),
+            fetchJSON(`/api/data/ab-test?bucket_size=${dashboardState.abBucketSize}`),
         ]);
         updateRangeUI(rangeData);
         renderFocusDashboard(focusData);
@@ -111,6 +113,36 @@ async function refreshDashboardData() {
     } finally {
         setLoading(false);
     }
+}
+
+
+function bindABControls() {
+    const bucketInput = document.getElementById("abBucketSize");
+    const applyBtn = document.getElementById("applyAbBucketBtn");
+    if (!bucketInput || !applyBtn) {
+        return;
+    }
+
+    bucketInput.value = String(dashboardState.abBucketSize);
+    applyBtn.addEventListener("click", applyABBucketSize);
+    bucketInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            applyABBucketSize();
+        }
+    });
+}
+
+
+function applyABBucketSize() {
+    const input = document.getElementById("abBucketSize");
+    if (!input) {
+        return;
+    }
+    const nextValue = Math.max(1, Math.min(50, Number.parseInt(input.value || "10", 10) || 10));
+    dashboardState.abBucketSize = nextValue;
+    input.value = String(nextValue);
+    refreshDashboardData();
 }
 
 
@@ -299,14 +331,14 @@ function renderBracketPerformance(data) {
     setText(
         "strongestBracketCopy",
         overview.strongest_score != null
-            ? `Average APS-peer score ${overview.strongest_score.toFixed(3)}`
+            ? `Average business score ${overview.strongest_score.toFixed(3)}`
             : "No ranking data"
     );
     setText("weakestBracketValue", overview.weakest_bracket || "--");
     setText(
         "weakestBracketCopy",
         overview.weakest_score != null
-            ? `Average APS-peer score ${overview.weakest_score.toFixed(3)}`
+            ? `Average business score ${overview.weakest_score.toFixed(3)}`
             : "No ranking data"
     );
     setText("bracketOutlierValue", String(overview.outlier_count ?? "--"));
@@ -336,7 +368,7 @@ function renderBracketPerformance(data) {
         tagAccuracy.available && tagAccuracy.bands?.length
             ? [
                 pill(`Scoped APS ${tagAccuracy.aps_range_label || "unknown"}`),
-                pill(tagAccuracy.band_method === "quantile" ? "Adaptive APS quintiles" : "APS bands"),
+                pill(tagAccuracy.band_method === "adaptive_log" ? "Adaptive log APS bands" : "APS bands"),
                 ...tagAccuracy.bands.map((band) => pill(`${band.bracket} ${band.label}`)),
             ].join("")
             : ""
@@ -367,7 +399,10 @@ function renderABTest(data) {
         setText("abRevenueDeltaCopy", "");
         setText("abChurnDeltaValue", "--");
         setText("abChurnDeltaCopy", "");
+        setText("abBucketScopeNote", "No AB workbook loaded");
         setHTML("abFindings", emptyState(data?.reason || "No AB workbook loaded."));
+        setHTML("abMetricSummary", "");
+        setHTML("abBucketMetrics", "");
         setHTML("abBracketCards", "");
         setHTML("abPositiveLevels", "");
         setHTML("abNegativeLevels", "");
@@ -387,6 +422,11 @@ function renderABTest(data) {
     setText("abRevenueDeltaCopy", `${data.variant_label} vs ${data.control_label} on revenue per 1k starters`);
     setText("abChurnDeltaValue", deltas.d3_churn_pp != null ? `${deltas.d3_churn_pp >= 0 ? "+" : ""}${deltas.d3_churn_pp.toFixed(2)} pp` : "--");
     setText("abChurnDeltaCopy", `${data.variant_label} vs ${data.control_label} on weighted D3 churn`);
+    setText("abBucketScopeNote", `${data.bucket_size || dashboardState.abBucketSize}-level buckets`);
+    const bucketInput = document.getElementById("abBucketSize");
+    if (bucketInput && data.bucket_size) {
+        bucketInput.value = String(data.bucket_size);
+    }
 
     setHTML(
         "abFindings",
@@ -394,6 +434,8 @@ function renderABTest(data) {
             ? data.findings.map((item) => itemCard(item.title, item.detail, [], false)).join("")
             : emptyState("No AB findings were generated.")
     );
+    setHTML("abMetricSummary", renderABMetricSummary(data));
+    setHTML("abBucketMetrics", renderABBucketMetrics(data));
 
     setHTML(
         "abBracketCards",
@@ -441,6 +483,80 @@ function renderABBracketCard(item) {
 }
 
 
+function renderABMetricSummary(data) {
+    if (!data.metric_summary?.length) {
+        return emptyState("No key metric summary is available for this experiment workbook.");
+    }
+
+    return `
+        <div class="focus-table-wrap">
+            <table class="table focus-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>${escapeHtml(data.control_label)} Avg</th>
+                        <th>${escapeHtml(data.control_label)} Median</th>
+                        <th>${escapeHtml(data.variant_label)} Avg</th>
+                        <th>${escapeHtml(data.variant_label)} Median</th>
+                        <th>Avg Delta</th>
+                        <th>Median Delta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.metric_summary.map((row) => `
+                        <tr>
+                            <td>${escapeHtml(row.label)}</td>
+                            <td>${formatABMetric(row.control_avg, row.type)}</td>
+                            <td>${formatABMetric(row.control_median, row.type)}</td>
+                            <td>${formatABMetric(row.variant_avg, row.type)}</td>
+                            <td>${formatABMetric(row.variant_median, row.type)}</td>
+                            <td>${formatABDelta(row.avg_delta, row.type)}</td>
+                            <td>${formatABDelta(row.median_delta, row.type)}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+
+function renderABBucketMetrics(data) {
+    if (!data.bucket_metrics?.length) {
+        return emptyState("No bucketed AB metrics are available.");
+    }
+
+    return `
+        <div class="focus-table-wrap">
+            <table class="table focus-table">
+                <thead>
+                    <tr>
+                        <th>Range</th>
+                        <th>Levels</th>
+                        <th>D3 Churn</th>
+                        <th>% IAP Users</th>
+                        <th>IAP Revenue</th>
+                        <th>FTD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.bucket_metrics.map((row) => `
+                        <tr>
+                            <td>${escapeHtml(row.label)}</td>
+                            <td>${row.level_count}</td>
+                            <td>${formatABPair(row.churn_3d, data.control_label, data.variant_label)}</td>
+                            <td>${formatABPair(row.iap_users_pct, data.control_label, data.variant_label)}</td>
+                            <td>${formatABPair(row.iap_revenue, data.control_label, data.variant_label)}</td>
+                            <td>${formatABPair(row.ftd_pct, data.control_label, data.variant_label)}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+
 function renderABLevelSwing(item, variantLabel, tone) {
     const details = [
         item.revenue_delta_per_k_users != null ? `Rev / 1k ${item.revenue_delta_per_k_users >= 0 ? "+" : ""}${item.revenue_delta_per_k_users.toFixed(1)}` : null,
@@ -461,6 +577,40 @@ function renderABLevelSwing(item, variantLabel, tone) {
 }
 
 
+function formatABMetric(value, type) {
+    if (value == null) {
+        return "—";
+    }
+    if (type === "pct") {
+        return `${Number(value).toFixed(2)}%`;
+    }
+    if (type === "currency") {
+        return Number(value).toFixed(1);
+    }
+    return Number(value).toFixed(2);
+}
+
+
+function formatABDelta(value, type) {
+    if (value == null) {
+        return "—";
+    }
+    const number = Number(value);
+    if (type === "pct") {
+        return `${number >= 0 ? "+" : ""}${number.toFixed(2)} pp`;
+    }
+    return `${number >= 0 ? "+" : ""}${number.toFixed(1)}`;
+}
+
+
+function formatABPair(metric, controlLabel, variantLabel) {
+    if (!metric) {
+        return "—";
+    }
+    return `${escapeHtml(controlLabel)} ${formatABMetric(metric.control_avg, metric.type)} / ${formatABMetric(metric.control_median, metric.type)} · ${escapeHtml(variantLabel)} ${formatABMetric(metric.variant_avg, metric.type)} / ${formatABMetric(metric.variant_median, metric.type)}`;
+}
+
+
 function renderABFunnelChart(data) {
     const canvas = document.getElementById("abFunnelChart");
     if (!canvas || typeof Chart === "undefined") {
@@ -472,7 +622,7 @@ function renderABFunnelChart(data) {
     dashboardState.abFunnelChart = new Chart(canvas, {
         type: "line",
         data: {
-            labels: data.funnel_curve.map((item) => `L${item.level}`),
+            labels: data.funnel_curve.map((item) => item.label || `L${item.level}`),
             datasets: [
                 {
                     label: `${data.control_label} funnel %`,
@@ -624,7 +774,7 @@ function renderBracketCard(bracket) {
             <div class="focus-item-header">
                 <div>
                     <h3>${escapeHtml(bracket.bracket)}</h3>
-                    <p class="focus-item-copy">Avg score ${formatMaybe(bracket.avg_score, 3)} · Avg APS ${formatMaybe(bracket.avg_aps, 2)} · Revenue / 1k ${formatMaybe(bracket.avg_revenue_per_k_users, 1)} · Churn ${formatMaybe(bracket.avg_combined_churn_pct, 2, "%")}</p>
+                    <p class="focus-item-copy">Business ${formatMaybe(bracket.avg_business_score, 3)} · Avg APS ${formatMaybe(bracket.avg_aps, 2)} · Revenue / 1k ${formatMaybe(bracket.avg_revenue_per_k_users, 1)} · Churn ${formatMaybe(bracket.avg_combined_churn_pct, 2, "%")}</p>
                 </div>
                 <div class="focus-pill-row">
                     ${pill(`${bracket.level_count} levels`)}

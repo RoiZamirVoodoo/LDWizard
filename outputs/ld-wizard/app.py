@@ -15,7 +15,7 @@ from engine.analysis.recommendations import compute_recommendations
 from engine.analysis.main_breakdown import compute_main_breakdown
 from engine.analysis.strategic import compute_strategic_views
 from engine.analysis.ab_test import compute_ab_test_analysis
-from engine.analysis.difficulty_bands import build_aps_quantile_bands, classify_aps_bracket, format_band_label
+from engine.analysis.difficulty_bands import build_aps_adaptive_bands, classify_aps_bracket, format_band_label
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -223,13 +223,17 @@ def _build_focus_dashboard_payload():
     }
 
 
-def _build_ab_test_payload():
+def _build_ab_test_payload(bucket_size=10):
     results = _app_data.get("ab_test_results") or {}
     meta = _app_data.get("ab_test_meta") or {}
-    if not results:
+    if _app_data.get("ab_test_df") is None:
         return {"available": False, "reason": "No AB test workbook loaded."}
 
-    payload = dict(results)
+    payload = dict(compute_ab_test_analysis(
+        _app_data.get("ab_test_df"),
+        meta,
+        level_bucket_size=bucket_size,
+    ))
     payload["meta"] = meta
     return payload
 
@@ -255,6 +259,7 @@ def _build_bracket_performance_payload():
             continue
         stats = bracket_stats.setdefault(bracket, {
             "scores": [],
+            "raw_scores": [],
             "aps": [],
             "combined_churn": [],
             "completion_rate": [],
@@ -264,10 +269,11 @@ def _build_bracket_performance_payload():
             "count": 0,
         })
         stats["count"] += 1
-        for key in ("perf_score", "aps", "combined_churn", "completion_rate", "revenue_score", "revenue_per_k_users", "iap_users_pct"):
+        for key in ("perf_score", "perf_score_raw", "aps", "combined_churn", "completion_rate", "revenue_score", "revenue_per_k_users", "iap_users_pct"):
             value = entry.get(key)
             if value is not None:
-                stats[key if key != "perf_score" else "scores"].append(float(value))
+                target_key = "scores" if key == "perf_score" else "raw_scores" if key == "perf_score_raw" else key
+                stats[target_key].append(float(value))
 
     bracket_cards = []
     for bracket, stats in bracket_stats.items():
@@ -275,6 +281,7 @@ def _build_bracket_performance_payload():
             "bracket": bracket,
             "level_count": stats["count"],
             "avg_score": round(sum(stats["scores"]) / max(len(stats["scores"]), 1), 3) if stats["scores"] else None,
+            "avg_business_score": round(sum(stats["raw_scores"]) / max(len(stats["raw_scores"]), 1), 3) if stats["raw_scores"] else None,
             "avg_aps": round(sum(stats["aps"]) / max(len(stats["aps"]), 1), 3) if stats["aps"] else None,
             "avg_combined_churn_pct": round(sum(stats["combined_churn"]) / max(len(stats["combined_churn"]), 1) * 100, 2) if stats["combined_churn"] else None,
             "avg_completion_pct": round(sum(stats["completion_rate"]) / max(len(stats["completion_rate"]), 1) * 100, 1) if stats["completion_rate"] else None,
@@ -295,12 +302,12 @@ def _build_bracket_performance_payload():
 
     strongest = max(
         bracket_cards,
-        key=lambda item: item["avg_score"] if item["avg_score"] is not None else -1,
+        key=lambda item: item["avg_business_score"] if item["avg_business_score"] is not None else -1,
         default=None,
     )
     weakest = min(
         bracket_cards,
-        key=lambda item: item["avg_score"] if item["avg_score"] is not None else 999,
+        key=lambda item: item["avg_business_score"] if item["avg_business_score"] is not None else 999,
         default=strongest,
     )
     bracket_cards.sort(
@@ -314,9 +321,9 @@ def _build_bracket_performance_payload():
         "headline": "Bracket performance now uses APS-derived peer bands for apples-to-apples ranking, while tag accuracy checks whether the intended difficulty labels still match reality.",
         "overview": {
             "strongest_bracket": strongest.get("bracket") if strongest else None,
-            "strongest_score": strongest.get("avg_score") if strongest else None,
+            "strongest_score": strongest.get("avg_business_score") if strongest else None,
             "weakest_bracket": weakest.get("bracket") if weakest else None,
-            "weakest_score": weakest.get("avg_score") if weakest else None,
+            "weakest_score": weakest.get("avg_business_score") if weakest else None,
             "outlier_count": len(outliers),
             "overperformer_count": overperformers,
             "underperformer_count": underperformers,
@@ -367,7 +374,7 @@ def _build_difficulty_tag_accuracy_payload(df):
     aps_values = [row["aps"] for row in scored_rows]
     aps_min = min(aps_values)
     aps_max = max(aps_values)
-    band_edges = build_aps_quantile_bands(aps_values)
+    band_edges = build_aps_adaptive_bands(aps_values)
 
     for row in scored_rows:
         actual_bracket = classify_aps_bracket(row["aps"], band_edges)
@@ -443,7 +450,7 @@ def _build_difficulty_tag_accuracy_payload(df):
 
     return {
         "available": True,
-        "headline": "Target tags are checked against five adaptive APS quintiles, so one extreme high-APS tail does not stretch the easier bands for the whole game.",
+        "headline": "Target tags are checked against an adaptive APS ladder that spreads bands in log space and trims the extreme top tail, so the easier brackets do not collapse while Wall stays reserved for genuinely high APS content.",
         "overall_accuracy_pct": round(total_aligned / total_scored * 100, 1),
         "aligned_level_count": total_aligned,
         "scored_level_count": total_scored,
@@ -452,7 +459,7 @@ def _build_difficulty_tag_accuracy_payload(df):
         "aps_range_min": round(aps_min, 3),
         "aps_range_max": round(aps_max, 3),
         "aps_range_label": format_band_label(aps_min, aps_max),
-        "band_method": "quantile",
+        "band_method": "adaptive_log",
         "bands": [
             {
                 "bracket": bracket,
@@ -753,7 +760,11 @@ def api_bracket_performance():
 @app.route("/api/data/ab-test")
 def api_ab_test():
     """AB test comparison payload, if an experiment workbook was uploaded."""
-    return json.dumps(_build_ab_test_payload())
+    try:
+        bucket_size = int(request.args.get("bucket_size", 10))
+    except (TypeError, ValueError):
+        bucket_size = 10
+    return json.dumps(_build_ab_test_payload(bucket_size=bucket_size))
 
 
 @app.route("/api/data/main-breakdown")

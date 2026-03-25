@@ -7,7 +7,7 @@ Identifies best/worst performers and outlier levels.
 import pandas as pd
 import numpy as np
 from engine.parser import DIFFICULTY_ORDER
-from engine.analysis.difficulty_bands import build_aps_quantile_bands, classify_aps_bracket, format_band_label
+from engine.analysis.difficulty_bands import build_aps_adaptive_bands, classify_aps_bracket, format_band_label
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ def compute_ranking(df):
         }
 
     df = df.copy().sort_values("level").reset_index(drop=True)
-    aps_bands = build_aps_quantile_bands(df["aps"].tolist())
+    aps_bands = build_aps_adaptive_bands(df["aps"].tolist())
     if not aps_bands:
         return {
             "rankings": [], "best_per_bracket": {}, "worst_per_bracket": {},
@@ -153,7 +153,7 @@ def compute_ranking(df):
         "worst_per_bracket": worst_per_bracket,
         "outliers": outliers,
         "insights": insights,
-        "band_method": "quantile",
+        "band_method": "adaptive_log",
         "bands": [
             {
                 "bracket": bracket,
@@ -256,7 +256,7 @@ def _generate_ranking_insights(df, rankings, best, worst, outliers):
     if scores:
         avg = sum(scores) / len(scores)
         insights.append(
-            f"Performance scores are APS-peer-relative: levels compete inside adaptive APS quintiles, not by target tag. "
+            f"Performance scores are APS-peer-relative: levels compete inside adaptive log-scaled APS bands, not by target tag. "
             f"Average: {avg:.3f}, range: {min(scores):.3f} – {max(scores):.3f}."
         )
 

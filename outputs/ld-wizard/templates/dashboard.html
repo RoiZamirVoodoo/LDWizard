@@ -232,7 +232,7 @@
                         <div class="focus-eyebrow">Accuracy</div>
                         <h2>Difficulty Tag Accuracy</h2>
                     </div>
-                    <p>Target tags are checked against adaptive APS quintiles, so one extreme high-APS tail does not stretch the easier bands for the whole game.</p>
+                    <p>Target tags are checked against an adaptive log-scaled APS ladder, so low brackets do not collapse while the wall bracket stays reserved for the true top tail.</p>
                 </div>
                 <div id="difficultyTagBands" class="focus-pill-row mb-3"></div>
                 <div id="difficultyTagAccuracy" class="focus-bracket-grid"></div>
@@ -251,6 +251,30 @@
         </div>
 
         <div id="abTestPanel" class="focus-dashboard" hidden>
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Controls</div>
+                        <h2>AB Breakdown Scope</h2>
+                    </div>
+                    <p>Choose how many consecutive levels to roll into each AB bracket, from single-level detail up to 50-level windows.</p>
+                </div>
+                <div class="level-range-bar">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-sm-4 col-md-3">
+                            <label class="form-label mb-1" for="abBucketSize">Levels Per Bracket</label>
+                            <input type="number" class="form-control level-range-input" id="abBucketSize" min="1" max="50" step="1" value="10">
+                        </div>
+                        <div class="col-sm-auto">
+                            <button id="applyAbBucketBtn" type="button" class="btn btn-primary btn-sm">Apply AB View</button>
+                        </div>
+                        <div class="col-sm-auto">
+                            <span id="abBucketScopeNote" class="active-filter-badge">10-level buckets</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="focus-stat-grid">
                 <article class="focus-stat-card">
                     <div class="focus-card-label">Experiment Winner</div>
@@ -288,6 +312,17 @@
             <section class="focus-section">
                 <div class="focus-section-header">
                     <div>
+                        <div class="focus-eyebrow">Metrics</div>
+                        <h2>Key Metric Summary</h2>
+                    </div>
+                    <p>See overall average and median for the core monetization and retention metrics before diving into the bucketed funnel.</p>
+                </div>
+                <div id="abMetricSummary"></div>
+            </section>
+
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
                         <div class="focus-eyebrow">Funnel</div>
                         <h2>Level Funnel Comparison</h2>
                     </div>
@@ -296,6 +331,17 @@
                 <div class="focus-chart-shell">
                     <canvas id="abFunnelChart"></canvas>
                 </div>
+            </section>
+
+            <section class="focus-section">
+                <div class="focus-section-header">
+                    <div>
+                        <div class="focus-eyebrow">Buckets</div>
+                        <h2>Bucketed Metric Breakdown</h2>
+                    </div>
+                    <p>Each row uses the selected level bracket size and shows avg / median for control and variant side by side.</p>
+                </div>
+                <div id="abBucketMetrics"></div>
             </section>
 
             <section class="focus-section">
