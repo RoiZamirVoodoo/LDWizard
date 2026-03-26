@@ -418,14 +418,19 @@ function renderFocusDashboard(data) {
     }
     setText("lateTrendBucketNote", lateTrend.bucket_size ? `${lateTrend.bucket_size}-level windows` : "Trend unavailable");
 
-    const drSelect = document.getElementById("drChurnType");
-    if (drSelect && diminishingReturns.available_churn_metrics?.length) {
-        drSelect.innerHTML = diminishingReturns.available_churn_metrics.map((item) => `
-            <option value="${escapeHtml(item.key)}"${item.key === diminishingReturns.churn_metric ? " selected" : ""}>${escapeHtml(item.label)}</option>
+    const churnSelect = document.getElementById("drChurnType");
+    const availableChurnMetrics = lateTrend.available_churn_metrics?.length
+        ? lateTrend.available_churn_metrics
+        : diminishingReturns.available_churn_metrics;
+    const selectedChurnMetric = lateTrend.churn_metric || diminishingReturns.churn_metric || dashboardState.drChurnMetric;
+    const selectedChurnLabel = lateTrend.churn_label || diminishingReturns.churn_label || "Churn unavailable";
+    if (churnSelect && availableChurnMetrics?.length) {
+        churnSelect.innerHTML = availableChurnMetrics.map((item) => `
+            <option value="${escapeHtml(item.key)}"${item.key === selectedChurnMetric ? " selected" : ""}>${escapeHtml(item.label)}</option>
         `).join("");
-        dashboardState.drChurnMetric = diminishingReturns.churn_metric || dashboardState.drChurnMetric;
+        dashboardState.drChurnMetric = selectedChurnMetric;
     }
-    setText("drChurnNote", diminishingReturns.churn_label || "Churn unavailable");
+    setText("drChurnNote", selectedChurnLabel);
 
     renderLateTrend(lateTrend);
     renderEndGameLoop(strategic.end_game_loop || {});
@@ -1005,9 +1010,10 @@ function renderLateTrend(view) {
         ], true)).join("")
         : emptyState("No APS slumps or oversized drops were found in the scoped late-game range.");
 
+    const churnLabel = view.churn_label || "Churn";
     bucketsEl.innerHTML = view.buckets.slice(0, 6).map((bucket) => itemCard(
         bucket.range_label,
-        `Avg APS ${bucket.avg_aps.toFixed(2)} · D3 churn ${bucket.avg_d3_churn_pct.toFixed(2)}% · IAP composite ${bucket.iap_composite.toFixed(3)}`,
+        `Avg APS ${bucket.avg_aps.toFixed(2)} · ${churnLabel} ${bucket.avg_churn_pct.toFixed(2)}% · IAP composite ${bucket.iap_composite.toFixed(3)}`,
         [
             pill(bucket.status, toneForVerdict(bucket.status)),
             pill(`Eff ${bucket.efficiency_score.toFixed(2)}`),

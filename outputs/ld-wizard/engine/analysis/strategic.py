@@ -14,6 +14,7 @@ DEFAULT_LATE_APS_TARGET_MIN = 1.9
 DEFAULT_LATE_APS_TARGET_MAX = 2.4
 WINDOW_SIZE = 50
 OPTIMIZATION_WINDOW_SIZE = 10
+LATE_APS_MIN_FUNNEL_PCT = 1.0
 DEFAULT_DR_CHURN_METRIC = "d3"
 APS_BUCKETS = [
     (1.0, 1.5),
@@ -53,16 +54,26 @@ def compute_strategic_views(df, scope, tutorial_max_level=0, options=None):
     onboarding_cutoff = max(ONBOARDING_LEVELS, int(tutorial_max_level or 0))
     options = options or {}
     late_trend_bucket_size = max(10, min(int(options.get("late_trend_bucket_size") or WINDOW_SIZE), 100))
-    dr_churn_metric = str(options.get("dr_churn_metric") or DEFAULT_DR_CHURN_METRIC)
+    global_churn_metric = str(
+        options.get("churn_metric")
+        or options.get("dr_churn_metric")
+        or DEFAULT_DR_CHURN_METRIC
+    )
 
     return {
-        "late_aps_trend": compute_late_aps_trend(df, current_scope, onboarding_cutoff, bucket_size=late_trend_bucket_size),
+        "late_aps_trend": compute_late_aps_trend(
+            df,
+            current_scope,
+            onboarding_cutoff,
+            bucket_size=late_trend_bucket_size,
+            churn_metric=global_churn_metric,
+        ),
         "end_game_loop": compute_end_game_loop(df, current_scope),
-        "diminishing_returns": compute_diminishing_returns_view(df, current_scope, churn_metric=dr_churn_metric),
+        "diminishing_returns": compute_diminishing_returns_view(df, current_scope, churn_metric=global_churn_metric),
     }
 
 
-def compute_late_aps_trend(df, scope, onboarding_cutoff, bucket_size=WINDOW_SIZE):
+def compute_late_aps_trend(df, scope, onboarding_cutoff, bucket_size=WINDOW_SIZE, churn_metric=DEFAULT_DR_CHURN_METRIC):
     start_level = max(int(scope["start"]), onboarding_cutoff + 1)
     end_level = int(scope["end"])
 
@@ -73,17 +84,30 @@ def compute_late_aps_trend(df, scope, onboarding_cutoff, bucket_size=WINDOW_SIZE
             "reason": "Not enough post-onboarding levels in the selected range.",
         }
 
-    buckets = _bucket_level_windows(subset, start_level, end_level, window_size=bucket_size)
+    resolved_metric, available_metrics = _resolve_churn_metric(subset, churn_metric)
+    buckets = _bucket_level_windows(
+        subset,
+        start_level,
+        end_level,
+        window_size=bucket_size,
+        churn_col=resolved_metric["column"],
+    )
     optimization_buckets = _bucket_level_windows(
         subset,
         start_level,
         end_level,
         window_size=OPTIMIZATION_WINDOW_SIZE,
+        churn_col=resolved_metric["column"],
     )
     if not buckets:
         return {"available": False, "reason": "No late-game buckets available."}
 
-    target_band = _derive_optimal_aps_band(optimization_buckets, OPTIMIZATION_WINDOW_SIZE)
+    target_band = _derive_optimal_aps_band(
+        optimization_buckets,
+        OPTIMIZATION_WINDOW_SIZE,
+        churn_key="avg_churn_pct",
+        churn_metric=resolved_metric,
+    )
     for bucket in buckets:
         bucket["efficiency_score"] = round(float(bucket.get("efficiency_score", 0)), 3)
         avg_aps = bucket["avg_aps"]
@@ -137,6 +161,9 @@ def compute_late_aps_trend(df, scope, onboarding_cutoff, bucket_size=WINDOW_SIZE
         "onboarding_cutoff": onboarding_cutoff,
         "target_band": target_band,
         "bucket_size": bucket_size,
+        "churn_metric": resolved_metric["key"],
+        "churn_label": resolved_metric["label"],
+        "available_churn_metrics": available_metrics,
         "buckets": buckets,
         "weak_ranges": weak_ranges[:6],
     }
@@ -257,20 +284,17 @@ def compute_diminishing_returns_view(df, scope, churn_metric=DEFAULT_DR_CHURN_ME
     revenue_values = [bucket["smooth_revenue_per_k_users"] for bucket in valid]
     payer_values = [bucket["smooth_iap_users_pct"] for bucket in valid]
     sink_values = [bucket["smooth_sink_pct"] for bucket in valid]
-    user_values = [bucket.get("avg_users", 0.0) for bucket in valid]
     churn_values = [bucket["smooth_churn_pct"] for bucket in valid]
 
     revenue_low, revenue_high = _percentile(revenue_values, 0.10), _percentile(revenue_values, 0.90)
     payer_low, payer_high = _percentile(payer_values, 0.10), _percentile(payer_values, 0.90)
     sink_low, sink_high = _percentile(sink_values, 0.10), _percentile(sink_values, 0.90)
-    users_low, users_high = _percentile(user_values, 0.20), _percentile(user_values, 0.90)
     churn_floor = max(_percentile(churn_values, 0.10), 0.05)
 
     for bucket in valid:
         revenue_strength = _scale_to_unit(bucket["smooth_revenue_per_k_users"], revenue_low, revenue_high)
         payer_strength = _scale_to_unit(bucket["smooth_iap_users_pct"], payer_low, payer_high)
         sink_strength = _scale_to_unit(bucket["smooth_sink_pct"], sink_low, sink_high)
-        volume_strength = _scale_to_unit(bucket.get("avg_users", 0.0), users_low, users_high)
         monetization_strength = (
             0.55 * revenue_strength
             + 0.20 * payer_strength
@@ -284,7 +308,7 @@ def compute_diminishing_returns_view(df, scope, churn_metric=DEFAULT_DR_CHURN_ME
         bucket["churn_ratio"] = round(churn_ratio, 4)
         bucket["churn_efficiency"] = round(churn_efficiency, 4)
         bucket["sweet_spot_score"] = round(
-            monetization_strength * churn_efficiency * (0.80 + 0.20 * volume_strength),
+            monetization_strength * churn_efficiency,
             4,
         )
 
@@ -421,23 +445,6 @@ def compute_diminishing_returns_view(df, scope, churn_metric=DEFAULT_DR_CHURN_ME
             "detail": "Higher APS buckets do not yet show a sustained post-peak decline in revenue-adjusted efficiency.",
         })
 
-    high_aps_survivor = next(
-        (
-            bucket for bucket in valid
-            if bucket["low_aps"] >= 7.0
-            and bucket["revenue_per_k_users"] >= _percentile([b["revenue_per_k_users"] for b in valid], 0.75)
-            and bucket.get("avg_users", 0.0) <= _percentile(user_values, 0.30)
-        ),
-        None,
-    )
-    if high_aps_survivor:
-        findings.append({
-            "title": "Survivor-heavy monetization",
-            "detail": (
-                f"APS {high_aps_survivor['label']} still spends well, but mostly through a much smaller surviving audience."
-            ),
-        })
-
     return {
         "available": True,
         "headline": headline,
@@ -458,9 +465,10 @@ def compute_diminishing_returns_view(df, scope, churn_metric=DEFAULT_DR_CHURN_ME
     }
 
 
-def _bucket_level_windows(df, start_level, end_level, window_size=WINDOW_SIZE):
+def _bucket_level_windows(df, start_level, end_level, window_size=WINDOW_SIZE, churn_col=None):
     buckets = []
     playtime_col = _playtime_col(df)
+    churn_col = churn_col or "churn_3d"
 
     for bucket_start in range(start_level, end_level + 1, window_size):
         bucket_end = min(end_level, bucket_start + window_size - 1)
@@ -477,6 +485,7 @@ def _bucket_level_windows(df, start_level, end_level, window_size=WINDOW_SIZE):
             "avg_users": round(float(subset["users"].mean()), 2) if "users" in subset.columns else 0.0,
             "avg_funnel_pct": round(float(subset["funnel_pct"].mean()) * 100, 2) if "funnel_pct" in subset.columns else 0.0,
             "avg_d3_churn_pct": round(float(subset["churn_3d"].mean()) * 100, 2) if "churn_3d" in subset.columns else 0.0,
+            "avg_churn_pct": round(float(subset[churn_col].mean()) * 100, 2) if churn_col in subset.columns else 0.0,
             "avg_playtime_sec": round(float(subset[playtime_col].mean()), 2) if playtime_col in subset.columns else 0.0,
             "avg_iap_users_pct": round(float(subset["iap_users_pct"].mean()) * 100, 3) if "iap_users_pct" in subset.columns else 0.0,
             "avg_iap_revenue": round(float(subset["iap_revenue"].mean()), 3) if "iap_revenue" in subset.columns else 0.0,
@@ -535,15 +544,22 @@ def _attach_iap_composite(buckets):
     return buckets
 
 
-def _derive_optimal_aps_band(buckets, window_size):
-    eligible = [bucket.copy() for bucket in buckets if bucket["count"] >= max(5, math.ceil(window_size * 0.7))]
-    if len(eligible) < 2:
+def _derive_optimal_aps_band(buckets, window_size, churn_key="avg_d3_churn_pct", churn_metric=None):
+    base_eligible = [bucket.copy() for bucket in buckets if bucket["count"] >= max(5, math.ceil(window_size * 0.7))]
+    if len(base_eligible) < 2:
         return {
             "min": DEFAULT_LATE_APS_TARGET_MIN,
             "max": DEFAULT_LATE_APS_TARGET_MAX,
             "source": "fallback",
             "window_size": window_size,
+            "churn_metric": (churn_metric or {}).get("key", DEFAULT_DR_CHURN_METRIC),
         }
+
+    funnel_filtered = [
+        bucket for bucket in base_eligible
+        if float(bucket.get("avg_funnel_pct", 0.0) or 0.0) >= LATE_APS_MIN_FUNNEL_PCT
+    ]
+    eligible = funnel_filtered if len(funnel_filtered) >= 8 else base_eligible
 
     for bucket in eligible:
         bucket["revenue_per_k_users"] = (
@@ -552,25 +568,21 @@ def _derive_optimal_aps_band(buckets, window_size):
 
     revenue_values = [bucket["revenue_per_k_users"] for bucket in eligible]
     payer_values = [bucket.get("avg_iap_users_pct", 0.0) for bucket in eligible]
-    user_values = [bucket.get("avg_users", 0.0) for bucket in eligible]
-    churn_values = [bucket.get("avg_d3_churn_pct", 0.0) for bucket in eligible]
+    churn_values = [bucket.get(churn_key, 0.0) for bucket in eligible]
 
     revenue_low, revenue_high = _percentile(revenue_values, 0.10), _percentile(revenue_values, 0.90)
     payer_low, payer_high = _percentile(payer_values, 0.10), _percentile(payer_values, 0.90)
-    users_low, users_high = _percentile(user_values, 0.25), _percentile(user_values, 0.90)
     churn_low, churn_high = _percentile(churn_values, 0.10), _percentile(churn_values, 0.85)
 
     for bucket in eligible:
         revenue_strength = _scale_to_unit(bucket["revenue_per_k_users"], revenue_low, revenue_high)
         payer_strength = _scale_to_unit(bucket.get("avg_iap_users_pct", 0.0), payer_low, payer_high)
-        volume_strength = _scale_to_unit(bucket.get("avg_users", 0.0), users_low, users_high)
-        churn_penalty = _scale_to_unit(bucket.get("avg_d3_churn_pct", 0.0), churn_low, churn_high)
+        churn_penalty = _scale_to_unit(bucket.get(churn_key, 0.0), churn_low, churn_high)
         churn_efficiency = 1.0 - churn_penalty
 
         bucket["optimization_score"] = (
             (0.75 * revenue_strength + 0.25 * payer_strength)
             * (0.35 + 0.65 * churn_efficiency)
-            * (0.55 + 0.45 * volume_strength)
         )
 
     weighted_aps = [
@@ -592,7 +604,11 @@ def _derive_optimal_aps_band(buckets, window_size):
         "source": "optimized",
         "window_count": len(eligible),
         "window_size": window_size,
-        "method": "weighted_revenue_churn",
+        "method": "weighted_revenue_churn_per_user",
+        "churn_metric": (churn_metric or {}).get("key", DEFAULT_DR_CHURN_METRIC),
+        "churn_label": (churn_metric or {}).get("label", "D3 churn"),
+        "min_funnel_pct": LATE_APS_MIN_FUNNEL_PCT,
+        "funnel_filter_applied": len(funnel_filtered) >= 8,
     }
 
 

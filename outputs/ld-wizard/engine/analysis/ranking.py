@@ -73,7 +73,6 @@ def compute_ranking(df):
         df.get("iap_transactions", pd.Series(0.0, index=df.index)).fillna(0) / users
     ).replace([np.inf, -np.inf], np.nan).fillna(0) * 1000.0
     df["payer_rate"] = df.get("iap_users_pct", pd.Series(0.0, index=df.index)).fillna(0).clip(lower=0, upper=1)
-    df["volume_strength"] = 1.0 if "users" not in df.columns else _scale_series(df["users"].fillna(0), 0.25, 0.90)
     df["revenue_strength"] = _scale_series(df["revenue_per_k_users"], 0.10, 0.90)
     df["payer_strength"] = _scale_series(df["payer_rate"], 0.10, 0.90)
     df["transaction_strength"] = _scale_series(df["transactions_per_k_users"], 0.10, 0.90)
@@ -91,12 +90,12 @@ def compute_ranking(df):
         if col in df.columns:
             df[col] = df[col].fillna(0)
 
-    # Monetization leads; churn acts like a tax; completion and volume stop
-    # tiny low-friction levels from dominating without revenue.
+    # Monetization leads and churn acts like a tax. User volume is intentionally
+    # excluded as a positive quality signal; it only contributes through
+    # per-user metrics like revenue/1k and through downstream data sufficiency.
     df["perf_score_raw"] = (
         (0.72 * df["monetization_strength"] + 0.28 * df["completion_strength"])
         * (0.30 + 0.70 * df["churn_efficiency"])
-        * (0.55 + 0.45 * df["volume_strength"])
     ).round(4)
 
     # --- APS-peer-relative normalization ---

@@ -50,9 +50,19 @@
                 <input type="number" id="levelEnd" class="form-control form-control-sm level-range-input" placeholder="End" style="width: 96px;">
                 <label for="loopStart" class="focus-field-label">Loop Start</label>
                 <input type="number" id="loopStart" class="form-control form-control-sm level-range-input" placeholder="Optional" style="width: 110px;">
+                <label for="drChurnType" class="focus-field-label">Churn Basis</label>
+                <select id="drChurnType" class="form-select form-select-sm" style="width: 150px;">
+                    <option value="d3">D3 churn</option>
+                    <option value="combined">Combined churn</option>
+                    <option value="session">Session churn</option>
+                    <option value="d7">D7 churn</option>
+                    <option value="predicted_d14">Predicted D14 churn</option>
+                </select>
             </div>
             <button id="applyRangeBtn" class="btn btn-sm btn-primary" style="font-size: 0.8rem;">Apply Filter</button>
+            <button id="applyDrChurnBtn" class="btn btn-sm btn-outline-primary" style="font-size: 0.8rem;">Apply Churn Basis</button>
             <button id="resetRangeBtn" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem; display: none;">Reset to Full</button>
+            <span id="drChurnNote" class="active-filter-badge">D3 churn</span>
             <span id="rangeInfo" class="text-muted" style="font-size: 0.8rem;"></span>
             <span id="rangeSpinner" class="text-muted" style="font-size: 0.8rem; display: none;">
                 <span class="spinner-border spinner-border-sm" role="status"></span> Re-analyzing...
@@ -191,26 +201,6 @@
                     <h2>Diminishing Returns</h2>
                 </div>
                 <p>Bucket by APS and identify the safe zone, sweet spot, and overstretched range where extra difficulty stops paying off cleanly.</p>
-            </div>
-            <div class="level-range-bar mb-3">
-                <div class="row g-2 align-items-end">
-                    <div class="col-sm-5 col-md-4">
-                        <label class="form-label mb-1" for="drChurnType">Churn Basis</label>
-                        <select id="drChurnType" class="form-select form-select-sm">
-                            <option value="d3">D3 churn</option>
-                            <option value="combined">Combined churn</option>
-                            <option value="session">Session churn</option>
-                            <option value="d7">D7 churn</option>
-                            <option value="predicted_d14">Predicted D14 churn</option>
-                        </select>
-                    </div>
-                    <div class="col-sm-auto">
-                        <button id="applyDrChurnBtn" type="button" class="btn btn-primary btn-sm">Apply Churn Basis</button>
-                    </div>
-                    <div class="col-sm-auto">
-                        <span id="drChurnNote" class="active-filter-badge">D3 churn</span>
-                    </div>
-                </div>
             </div>
             <div class="focus-chart-shell">
                 <canvas id="drChart"></canvas>
