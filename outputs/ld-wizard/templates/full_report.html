@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        :root {
+            --bg: #f4efe5;
+            --paper: #fffdf8;
+            --ink: #203243;
+            --muted: #6a7884;
+            --line: #ddd3c4;
+            --accent: #2f6f95;
+            --accent-soft: #dcecf5;
+            --success: #3f8c5d;
+            --success-soft: #e6f3e9;
+            --warning: #c7881f;
+            --warning-soft: #fff0d2;
+            --danger: #c35b4a;
+            --danger-soft: #f8e3df;
+            --shadow: 0 18px 40px rgba(23, 39, 52, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at top right, rgba(47, 111, 149, 0.10), transparent 30%),
+                linear-gradient(180deg, #f6f1e7 0%, #f0ebe1 100%);
+            color: var(--ink);
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
+        }
+        .report-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 28px 24px 60px;
+        }
+        .hero {
+            background:
+                radial-gradient(circle at top right, rgba(47, 111, 149, 0.18), transparent 34%),
+                linear-gradient(135deg, #fffdf8 0%, #f9f5ec 100%);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 28px 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 22px;
+        }
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .eyebrow {
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.76rem;
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        h1 {
+            margin: 0 0 10px;
+            font-size: 2.5rem;
+            line-height: 0.98;
+            letter-spacing: -0.05em;
+        }
+        .subtitle {
+            margin: 0;
+            max-width: 760px;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.55;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .hero-actions button {
+            border: 1px solid var(--line);
+            background: var(--paper);
+            color: var(--ink);
+            padding: 10px 14px;
+            border-radius: 999px;
+            font: inherit;
+            cursor: pointer;
+        }
+        .hero-actions .primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .meta-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+        .page {
+            margin-bottom: 20px;
+            page-break-after: always;
+        }
+        .page:last-child { page-break-after: auto; }
+        .section-shell {
+            background: rgba(255,255,255,0.65);
+            border: 1px solid rgba(221,211,196,0.8);
+            border-radius: 24px;
+            padding: 22px;
+            box-shadow: var(--shadow);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .section-header h2 {
+            margin: 0;
+            font-size: 1.6rem;
+            letter-spacing: -0.04em;
+        }
+        .section-copy {
+            color: var(--muted);
+            max-width: 720px;
+            line-height: 1.55;
+            font-size: 0.98rem;
+        }
+        .grid { display: grid; gap: 16px; }
+        .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 18px;
+        }
+        .stat-label {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .stat-copy, .body-copy {
+            color: var(--muted);
+            font-size: 0.94rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+        .body-copy strong { color: var(--ink); }
+        .list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .list-item {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid #ebe3d7;
+            background: #fcfaf5;
+        }
+        .list-item strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+        .list-item span {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+        .pill {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+        .pill-success { background: var(--success-soft); color: var(--success); }
+        .pill-warning { background: var(--warning-soft); color: var(--warning); }
+        .pill-danger { background: var(--danger-soft); color: var(--danger); }
+        .pill-default { background: #edf1f5; color: #5a6977; }
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--paper);
+        }
+        table {
+            width: 100%;
+            min-width: 700px;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #ebe3d7;
+            text-align: left;
+            vertical-align: top;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #f8f3ea;
+            color: var(--muted);
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .bar-track {
+            height: 10px;
+            background: #ece4d8;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), #62a3c4);
+        }
+        .bar-fill-success { background: linear-gradient(90deg, var(--success), #7dbe95); }
+        .bar-fill-warning { background: linear-gradient(90deg, var(--warning), #efb454); }
+        .bar-fill-danger { background: linear-gradient(90deg, var(--danger), #e08a7c); }
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .tone-success { color: var(--success); }
+        .tone-warning { color: var(--warning); }
+        .tone-danger { color: var(--danger); }
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .metric-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .metric-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 56px;
+            gap: 10px;
+            align-items: center;
+            font-size: 0.86rem;
+            color: var(--muted);
+        }
+        .metric-row strong { color: var(--ink); }
+        .page-break {
+            break-before: page;
+            page-break-before: always;
+        }
+        .muted { color: var(--muted); }
+        .page-label {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        @media (max-width: 960px) {
+            .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body { background: white; }
+            .report-shell { max-width: none; padding: 0; }
+            .hero-actions { display: none; }
+            .section-shell, .hero { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-shell">
+        <section class="hero">
+            <div class="hero-top">
+                <div>
+                    <div class="eyebrow">LD Wizard Full Report</div>
+                    <h1>{{ title }}</h1>
+                    <p class="subtitle">{{ subtitle }}</p>
+                </div>
+                <div class="hero-actions">
+                    <button class="primary" onclick="window.print()">Print / Save as PDF</button>
+                    <button onclick="window.close()">Close</button>
+                </div>
+            </div>
+            <div class="meta-row">
+                <span class="chip">Generated {{ generated_at }}</span>
+                {% if payload.available %}
+                <span class="chip">Churn {{ payload.methodology.churn_label or "n/a" }}</span>
+                <span class="chip">Trend windows {{ payload.methodology.late_trend_bucket_size }} levels</span>
+                <span class="chip">{{ "Manual APS targets" if payload.methodology.aps_target_mode == "manual" else "Adaptive APS targets" }}</span>
+                {% endif %}
+            </div>
+            {% if payload.available %}
+            <div class="kpi-strip">
+                {% for item in payload.executive.summary_cards %}
+                <div class="panel" style="padding:14px;">
+                    <div class="stat-label">{{ item.label }}</div>
+                    <div class="stat-value" style="font-size:1.55rem;">{{ item.value }}</div>
+                    <p class="stat-copy">{{ item.copy }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+
+        {% if not payload.available %}
+        <section class="section-shell">
+            <div class="section-header">
+                <div>
+                    <div class="page-label">Status</div>
+                    <h2>Full Report Unavailable</h2>
+                </div>
+            </div>
+            <p class="section-copy">{{ payload.reason }}</p>
+        </section>
+        {% else %}
+        {% set focus = payload.focus %}
+        {% set focus_summary = focus.summary or {} %}
+        {% set focus_scope = focus.scope or {} %}
+        {% set strategic = focus.strategic_views or {} %}
+        {% set late = strategic.late_aps_trend or {} %}
+        {% set loop = strategic.end_game_loop or {} %}
+        {% set dr = strategic.diminishing_returns or {} %}
+        {% set brackets = payload.brackets %}
+        {% set qqf = payload.qqf %}
+        {% set executive = payload.executive %}
+
+        <section class="page">
+            <div class="section-shell">
+                <div class="section-header">
+                    <div>
+                        <div class="page-label">Executive Summary</div>
+                        <h2>What Matters Now</h2>
+                    </div>
+                    <p class="section-copy">{{ executive.headline }}</p>
+                </div>
+
+                <div class="grid grid-4" style="margin-bottom: 16px;">
+                    {% for item in executive.summary_cards %}
+                    <article class="panel">
+                        <div class="stat-label">{{ item.label }}</div>
+                        <div class="stat-value">{{ item.value }}</div>
+                        <p class="stat-copy">{{ item.copy }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                <div class="grid grid-2">
+                    <article class="panel">
+                        <div class="stat-label">Immediate Actions</div>
+                        <div class="list">
+                            {% for item in executive.key_actions %}
+                            <div class="list-item">
+                                <strong>{{ item.title }}</strong>
+                                <span>{{ item.detail }}</span>
+                                <div style="margin-top:8px;">
+                                    <span class="pill pill-{{ item.tone or 'default' }}">{{ item.tone or "default" }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Opportunities</div>
+                        <div class="list">
+                            {% for item in executive.opportunities %}
+                            <div class="list-item">
+                                <strong>{{ item.title }}</strong>
+                                <span>{{ item.detail }}</span>
+                                <div style="margin-top:8px;">
+                                    <span class="pill pill-{{ item.tone or 'success' }}">{{ item.tone or "success" }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="page page-break">
+            <div class="section-shell">
+                <div class="section-header">
+                    <div>
+                        <div class="page-label">Section 1</div>
+                        <h2>Funnel Health & Quality</h2>
+                    </div>
+                    <p class="section-copy">This section mirrors the Focus Dashboard: it uses the active analysis scope, selected churn basis, and late-game optimization settings.</p>
+                </div>
+
+                <div class="grid grid-4" style="margin-bottom: 16px;">
+                    <article class="panel">
+                        <div class="stat-label">Full Range</div>
+                        <div class="stat-value">{{ focus_scope.full_range_label or "n/a" }}</div>
+                        <p class="stat-copy">All loaded levels in the workbook.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Analysis Range</div>
+                        <div class="stat-value">{{ focus_scope.analysis_range_label or "n/a" }}</div>
+                        <p class="stat-copy">The exact active dashboard scope.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Avg APS</div>
+                        <div class="stat-value">{{ "%.3f"|format(focus_summary.avg_aps) if focus_summary.avg_aps is not none else "n/a" }}</div>
+                        <p class="stat-copy">Average APS across the active scope.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Avg Completion</div>
+                        <div class="stat-value">{{ "%.1f%%"|format(focus_summary.avg_completion_pct) if focus_summary.avg_completion_pct is not none else "n/a" }}</div>
+                        <p class="stat-copy">Completion context for the current scope.</p>
+                    </article>
+                </div>
+
+                <div class="grid grid-3">
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Late APS Trend</h3>
+                        <p class="body-copy"><strong>{{ late.headline or late.reason }}</strong></p>
+                        <div class="meta-row" style="margin-top: 12px;">
+                            <span class="pill pill-default">{{ late.bucket_size or payload.methodology.late_trend_bucket_size }}-level windows</span>
+                            {% if late.target_band %}
+                            <span class="pill pill-success">Target {{ "%.2f"|format(late.target_band.min) }}–{{ "%.2f"|format(late.target_band.max) }} APS</span>
+                            {% endif %}
+                        </div>
+                        <div class="list" style="margin-top: 12px;">
+                            {% for item in late.get('weak_ranges', [])[:5] %}
+                            <div class="list-item">
+                                <strong>{{ item.range_label }}</strong>
+                                <span>{{ item.reason }}</span>
+                            </div>
+                            {% endfor %}
+                            {% if not late.get('weak_ranges') %}
+                            <div class="list-item"><span>No late APS weak ranges were flagged in the current scope.</span></div>
+                            {% endif %}
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <h3 style="margin-top:0;">End Game Loop</h3>
+                        <p class="body-copy"><strong>{{ loop.headline or loop.reason }}</strong></p>
+                        <div class="meta-row" style="margin-top: 12px;">
+                            {% if loop.get('baseline_aps') is not none %}
+                            <span class="pill pill-default">Baseline APS {{ "%.2f"|format(loop.get('baseline_aps')) }}</span>
+                            {% endif %}
+                            {% if loop.get('baseline_d3_churn_pct') is not none %}
+                            <span class="pill pill-default">Baseline D3 {{ "%.2f%%"|format(loop.get('baseline_d3_churn_pct')) }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="list" style="margin-top: 12px;">
+                            {% for item in loop.get('issues', [])[:5] %}
+                            <div class="list-item">
+                                <strong>{{ item.range_label }}</strong>
+                                <span>{{ item.reason }}</span>
+                            </div>
+                            {% endfor %}
+                            {% if not loop.get('issues') %}
+                            <div class="list-item"><span>No material loop issues were flagged in the current scope.</span></div>
+                            {% endif %}
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Diminishing Returns</h3>
+                        <p class="body-copy"><strong>{{ dr.headline or dr.reason }}</strong></p>
+                        <div class="meta-row" style="margin-top: 12px;">
+                            <span class="pill pill-default">{{ dr.churn_label or "n/a" }}</span>
+                            {% if dr.zones and dr.zones.sweet_spot %}
+                            <span class="pill pill-success">Sweet {{ dr.zones.sweet_spot }}</span>
+                            {% endif %}
+                            {% if dr.zones and dr.zones.transition %}
+                            <span class="pill pill-warning">Transition {{ dr.zones.transition }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="list" style="margin-top: 12px;">
+                            {% for item in dr.get('findings', [])[:5] %}
+                            <div class="list-item">
+                                <strong>{{ item.title }}</strong>
+                                <span>{{ item.detail }}</span>
+                            </div>
+                            {% endfor %}
+                            {% if not dr.get('findings') %}
+                            <div class="list-item"><span>No diminishing-return findings were generated in the current scope.</span></div>
+                            {% endif %}
+                        </div>
+                    </article>
+                </div>
+
+                <div class="grid grid-2" style="margin-top: 16px;">
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Late APS Window Evidence</h3>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Range</th>
+                                        <th>APS</th>
+                                        <th>{{ late.churn_label or "Churn" }}</th>
+                                        <th>Rev / 1k</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in late.get('buckets', [])[:10] %}
+                                    <tr>
+                                        <td>{{ item.range_label }}</td>
+                                        <td>{{ "%.2f"|format(item.avg_aps) }}</td>
+                                        <td>{{ "%.2f%%"|format(item.avg_churn_pct) }}</td>
+                                        <td>{{ "%.1f"|format(item.revenue_per_k_users if item.revenue_per_k_users is defined else 0) }}</td>
+                                        <td>
+                                            <span class="pill pill-{% if item.status == 'healthy' %}success{% elif item.status == 'spike' %}warning{% else %}danger{% endif %}">
+                                                {{ item.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <h3 style="margin-top:0;">APS Bucket Economics</h3>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>APS Bucket</th>
+                                        <th>{{ dr.churn_label or "Churn" }}</th>
+                                        <th>IAP Composite</th>
+                                        <th>Sweet Spot Score</th>
+                                        <th>Zone</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in dr.get('buckets', [])[:10] %}
+                                    <tr>
+                                        <td>{{ item.label }}</td>
+                                        <td>{{ "%.2f%%"|format(item.avg_churn_pct) }}</td>
+                                        <td>{{ "%.2f"|format(item.iap_composite) }}</td>
+                                        <td>{{ "%.2f"|format(item.sweet_spot_score) }}</td>
+                                        <td>
+                                            <span class="pill pill-{% if item.zone == 'sweet_spot' or item.zone == 'safe' %}success{% elif item.zone == 'transition' %}warning{% else %}danger{% endif %}">
+                                                {{ item.zone_label }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="page page-break">
+            <div class="section-shell">
+                <div class="section-header">
+                    <div>
+                        <div class="page-label">Section 2</div>
+                        <h2>Dynamic Bracket Performance</h2>
+                    </div>
+                    <p class="section-copy">This section uses the same APS-peer ranking and tag-accuracy logic as the Bracket Performance tab, including manual APS targets when manual mode is active.</p>
+                </div>
+
+                <div class="grid grid-4" style="margin-bottom: 16px;">
+                    <article class="panel">
+                        <div class="stat-label">Strongest APS Band</div>
+                        <div class="stat-value">{{ brackets.overview.strongest_bracket or "n/a" }}</div>
+                        <p class="stat-copy">Business {{ "%.3f"|format(brackets.overview.strongest_score) if brackets.overview.strongest_score is not none else "n/a" }}</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Weakest APS Band</div>
+                        <div class="stat-value">{{ brackets.overview.weakest_bracket or "n/a" }}</div>
+                        <p class="stat-copy">Business {{ "%.3f"|format(brackets.overview.weakest_score) if brackets.overview.weakest_score is not none else "n/a" }}</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Tag Accuracy</div>
+                        <div class="stat-value">{{ "%.1f%%"|format(brackets.overview.tag_accuracy_pct) if brackets.overview.tag_accuracy_pct is not none else "n/a" }}</div>
+                        <p class="stat-copy">{{ brackets.overview.aligned_level_count or 0 }}/{{ brackets.overview.scored_level_count or 0 }} scoped levels align with their APS band.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Outliers</div>
+                        <div class="stat-value">{{ brackets.overview.outlier_count or 0 }}</div>
+                        <p class="stat-copy">{{ brackets.overview.overperformer_count or 0 }} overperformers · {{ brackets.overview.underperformer_count or 0 }} underperformers.</p>
+                    </article>
+                </div>
+
+                <div class="panel" style="margin-bottom: 16px;">
+                    <h3 style="margin-top:0;">Difficulty Tag Accuracy</h3>
+                    <div class="grid grid-3">
+                        {% for item in brackets.tag_accuracy.targets or [] %}
+                        <article class="list-item" style="background:#fff;">
+                            <strong>{{ item.target_bracket }}</strong>
+                            <span>{{ item.match_count }}/{{ item.total_count }} aligned · {{ "%.1f%%"|format(item.match_pct) }} accuracy</span>
+                            <div class="bar-track">
+                                <div class="bar-fill {% if item.match_pct >= 70 %}bar-fill-success{% elif item.match_pct < 45 %}bar-fill-danger{% else %}bar-fill-warning{% endif %}" style="width: {{ item.match_pct }}%;"></div>
+                            </div>
+                            <span class="muted" style="display:block; margin-top:8px;">Target band {{ item.target_band_label }} · dominant actual {{ item.dominant_actual_bracket or "n/a" }}</span>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid grid-2" style="margin-bottom: 16px;">
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Bracket Insights</h3>
+                        <div class="list">
+                            {% for item in brackets.insights or [] %}
+                            <div class="list-item">
+                                <strong>Insight</strong>
+                                <span>{{ item }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Mismatch Examples</h3>
+                        <div class="list">
+                            {% for target in brackets.tag_accuracy.targets or [] %}
+                                {% for item in target.mismatch_examples[:1] %}
+                                <div class="list-item">
+                                    <strong>{{ target.target_bracket }} · L{{ item.level }}</strong>
+                                    <span>APS {{ "%.2f"|format(item.aps) }} behaves like {{ item.actual_bracket }}. {{ item.direction|capitalize }} than intended.</span>
+                                </div>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </article>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>APS Band</th>
+                                <th>Levels</th>
+                                <th>Business Score</th>
+                                <th>Avg APS</th>
+                                <th>Revenue / 1k</th>
+                                <th>Top Levels</th>
+                                <th>Bottom Levels</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bracket in brackets.brackets or [] %}
+                            <tr>
+                                <td>{{ bracket.bracket }}</td>
+                                <td>{{ bracket.level_count }}</td>
+                                <td>{{ "%.3f"|format(bracket.avg_business_score) if bracket.avg_business_score is not none else "n/a" }}</td>
+                                <td>{{ "%.2f"|format(bracket.avg_aps) if bracket.avg_aps is not none else "n/a" }}</td>
+                                <td>{{ "%.1f"|format(bracket.avg_revenue_per_k_users) if bracket.avg_revenue_per_k_users is not none else "n/a" }}</td>
+                                <td>
+                                    {% for item in bracket.top_levels[:3] %}
+                                    <div><strong>L{{ item.level }}</strong> · {{ item.reason }}</div>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% for item in bracket.bottom_levels[:3] %}
+                                    <div><strong>L{{ item.level }}</strong> · {{ item.reason }}</div>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="page page-break">
+            <div class="section-shell">
+                <div class="section-header">
+                    <div>
+                        <div class="page-label">Section 3</div>
+                        <h2>QQF Deep Dive</h2>
+                    </div>
+                    <p class="section-copy">{{ qqf.metric_note }}</p>
+                </div>
+
+                <div class="grid grid-4" style="margin-bottom: 16px;">
+                    <article class="panel">
+                        <div class="stat-label">Stars</div>
+                        <div class="stat-value">{{ qqf.overview.star_count or 0 }}</div>
+                        <p class="stat-copy">Best study levels inside their target tags.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Stable</div>
+                        <div class="stat-value">{{ qqf.overview.stable_count or 0 }}</div>
+                        <p class="stat-copy">Healthy baseline levels.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Watch</div>
+                        <div class="stat-value">{{ qqf.overview.watch_count or 0 }}</div>
+                        <p class="stat-copy">Needs attention before slipping further.</p>
+                    </article>
+                    <article class="panel">
+                        <div class="stat-label">Killzone</div>
+                        <div class="stat-value">{{ qqf.overview.killzone_count or 0 }}</div>
+                        <p class="stat-copy">Highest-priority fixes by QQF.</p>
+                    </article>
+                </div>
+
+                <div class="grid grid-2" style="margin-bottom: 16px;">
+                    {% for tier in qqf.tiers or [] %}
+                    <article class="panel">
+                        <h3 style="margin-top:0;">{{ tier.bracket }}</h3>
+                        <p class="body-copy">Avg QQF {{ "%.2f"|format(tier.avg_score) if tier.avg_score is not none else "n/a" }} · APS target {{ tier.band_label }} · APS aligned {{ "%.1f%%"|format(tier.aps_alignment_pct) if tier.aps_alignment_pct is not none else "n/a" }}</p>
+                        <div class="meta-row" style="margin-top: 12px;">
+                            <span class="pill pill-success">Stars {{ tier.status_counts.Star or 0 }}</span>
+                            <span class="pill pill-default">Stable {{ tier.status_counts.Stable or 0 }}</span>
+                            <span class="pill pill-warning">Watch {{ tier.status_counts.Watch or 0 }}</span>
+                            <span class="pill pill-danger">Killzone {{ tier.status_counts.Killzone or 0 }}</span>
+                        </div>
+                        <div class="metric-stack" style="margin-top: 12px;">
+                            {% set total = tier.level_count or 1 %}
+                            <div class="metric-row">
+                                <strong>Stars</strong>
+                                <div class="bar-track"><div class="bar-fill bar-fill-success" style="width: {{ ((tier.status_counts.Star or 0) / total) * 100 }}%;"></div></div>
+                                <span>{{ "%.0f%%"|format(((tier.status_counts.Star or 0) / total) * 100) }}</span>
+                            </div>
+                            <div class="metric-row">
+                                <strong>Stable</strong>
+                                <div class="bar-track"><div class="bar-fill" style="width: {{ ((tier.status_counts.Stable or 0) / total) * 100 }}%;"></div></div>
+                                <span>{{ "%.0f%%"|format(((tier.status_counts.Stable or 0) / total) * 100) }}</span>
+                            </div>
+                            <div class="metric-row">
+                                <strong>Watch</strong>
+                                <div class="bar-track"><div class="bar-fill bar-fill-warning" style="width: {{ ((tier.status_counts.Watch or 0) / total) * 100 }}%;"></div></div>
+                                <span>{{ "%.0f%%"|format(((tier.status_counts.Watch or 0) / total) * 100) }}</span>
+                            </div>
+                            <div class="metric-row">
+                                <strong>Killzone</strong>
+                                <div class="bar-track"><div class="bar-fill bar-fill-danger" style="width: {{ ((tier.status_counts.Killzone or 0) / total) * 100 }}%;"></div></div>
+                                <span>{{ "%.0f%%"|format(((tier.status_counts.Killzone or 0) / total) * 100) }}</span>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                <div class="grid grid-3">
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Top Stars</h3>
+                        <div class="list">
+                            {% for item in qqf.top_stars[:8] %}
+                            <div class="list-item">
+                                <strong>L{{ item.level }} · {{ item.qqf_status }}</strong>
+                                <span>{{ item.reason }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Top Killzones</h3>
+                        <div class="list">
+                            {% for item in qqf.top_killzones[:8] %}
+                            <div class="list-item">
+                                <strong>L{{ item.level }} · {{ item.qqf_status }}</strong>
+                                <span>{{ item.reason }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Watchlist</h3>
+                        <div class="list">
+                            {% for item in qqf.watchlist[:8] %}
+                            <div class="list-item">
+                                <strong>L{{ item.level }} · {{ item.qqf_status }}</strong>
+                                <span>{{ item.reason }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </div>
+
+                <div class="table-wrap" style="margin-top: 16px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tier</th>
+                                <th>Avg QQF</th>
+                                <th>APS Target</th>
+                                <th>APS Alignment</th>
+                                <th>Stars</th>
+                                <th>Killzones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tier in qqf.tiers or [] %}
+                            <tr>
+                                <td>{{ tier.bracket }}</td>
+                                <td>{{ "%.2f"|format(tier.avg_score) if tier.avg_score is not none else "n/a" }}</td>
+                                <td>{{ tier.band_label }}</td>
+                                <td>{{ "%.1f%%"|format(tier.aps_alignment_pct) if tier.aps_alignment_pct is not none else "n/a" }}</td>
+                                <td>{{ tier.status_counts.Star or 0 }}</td>
+                                <td>{{ tier.status_counts.Killzone or 0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="page page-break">
+            <div class="section-shell">
+                <div class="section-header">
+                    <div>
+                        <div class="page-label">Appendix</div>
+                        <h2>Methodology & Active Settings</h2>
+                    </div>
+                    <p class="section-copy">This report is a snapshot of the current dashboard configuration. If the scope, churn basis, trend window, or APS target mode changes, the report changes with it.</p>
+                </div>
+
+                <div class="grid grid-2" style="margin-bottom: 16px;">
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Active Scope</h3>
+                        <div class="list">
+                            <div class="list-item">
+                                <strong>Full Range</strong>
+                                <span>{{ payload.methodology.scope.full_range_label or "n/a" }}</span>
+                            </div>
+                            <div class="list-item">
+                                <strong>Analysis Range</strong>
+                                <span>{{ payload.methodology.scope.analysis_range_label or "n/a" }}</span>
+                            </div>
+                            <div class="list-item">
+                                <strong>Loop Start</strong>
+                                <span>{{ payload.methodology.scope.loop_start_label or "n/a" }}</span>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Analysis Rules</h3>
+                        <div class="list">
+                            <div class="list-item">
+                                <strong>Churn Basis</strong>
+                                <span>{{ payload.methodology.churn_label or "n/a" }}</span>
+                            </div>
+                            <div class="list-item">
+                                <strong>Late APS Trend Window</strong>
+                                <span>{{ payload.methodology.late_trend_bucket_size }}-level windows</span>
+                            </div>
+                            <div class="list-item">
+                                <strong>APS Target Mode</strong>
+                                <span>{{ "Manual APS targets" if payload.methodology.aps_target_mode == "manual" else "Adaptive APS targets" }}</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                {% if payload.methodology.aps_target_mode == "manual" %}
+                <div class="panel" style="margin-bottom: 16px;">
+                    <h3 style="margin-top:0;">Manual APS Targets</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tier</th>
+                                    <th>Min APS</th>
+                                    <th>Max APS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Easy</td><td>{{ payload.methodology.manual_aps_targets.easy_min or "n/a" }}</td><td>{{ payload.methodology.manual_aps_targets.easy_max or "n/a" }}</td></tr>
+                                <tr><td>Medium</td><td>{{ payload.methodology.manual_aps_targets.medium_min or "n/a" }}</td><td>{{ payload.methodology.manual_aps_targets.medium_max or "n/a" }}</td></tr>
+                                <tr><td>Hard</td><td>{{ payload.methodology.manual_aps_targets.hard_min or "n/a" }}</td><td>{{ payload.methodology.manual_aps_targets.hard_max or "n/a" }}</td></tr>
+                                <tr><td>Super Hard</td><td>{{ payload.methodology.manual_aps_targets.super_hard_min or "n/a" }}</td><td>{{ payload.methodology.manual_aps_targets.super_hard_max or "n/a" }}</td></tr>
+                                <tr><td>Wall</td><td>{{ payload.methodology.manual_aps_targets.wall_min or "n/a" }}</td><td>{{ payload.methodology.manual_aps_targets.wall_max or "open" }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="grid grid-3">
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Late APS Trend</h3>
+                        <p class="body-copy">{{ payload.methodology.late_note }}</p>
+                    </article>
+                    <article class="panel">
+                        <h3 style="margin-top:0;">Diminishing Returns</h3>
+                        <p class="body-copy">{{ payload.methodology.dr_note or "Diminishing returns uses the selected churn basis and revenue-per-user efficiency to find the current sweet spot." }}</p>
+                    </article>
+                    <article class="panel">
+                        <h3 style="margin-top:0;">QQF</h3>
+                        <p class="body-copy">{{ payload.methodology.qqf_note or "QQF uses deterministic tag-relative scoring." }}</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</body>
+</html>

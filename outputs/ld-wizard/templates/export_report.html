@@ -250,6 +250,8 @@
                 {% if tab_name == "focus" %}
                 <span class="chip">Trend windows {{ late_trend_bucket_size }} levels</span>
                 <span class="chip">DR churn basis {{ dr_churn_metric }}</span>
+                {% elif tab_name == "qqf" %}
+                <span class="chip">QQF churn basis {{ dr_churn_metric }}</span>
                 {% elif tab_name == "ab" %}
                 <span class="chip">AB bucket size {{ ab_bucket_size }} levels</span>
                 {% endif %}
@@ -432,6 +434,96 @@
                     </div>
                 </article>
                 {% endfor %}
+            </section>
+        {% elif tab_name == "qqf" %}
+            {% set overview = payload.overview or {} %}
+            <section class="grid grid-4" style="margin-bottom: 18px;">
+                <article class="panel">
+                    <div class="stat-label">Stars</div>
+                    <div class="stat-value">{{ overview.star_count or 0 }}</div>
+                    <p class="stat-copy">Best levels to study inside their target tags.</p>
+                </article>
+                <article class="panel">
+                    <div class="stat-label">Stable</div>
+                    <div class="stat-value">{{ overview.stable_count or 0 }}</div>
+                    <p class="stat-copy">Healthy levels without a strong correction signal.</p>
+                </article>
+                <article class="panel">
+                    <div class="stat-label">Watch</div>
+                    <div class="stat-value">{{ overview.watch_count or 0 }}</div>
+                    <p class="stat-copy">Needs attention before quality slips further.</p>
+                </article>
+                <article class="panel">
+                    <div class="stat-label">Killzone</div>
+                    <div class="stat-value">{{ overview.killzone_count or 0 }}</div>
+                    <p class="stat-copy">Highest-priority fix candidates.</p>
+                </article>
+            </section>
+
+            <section class="panel" style="margin-bottom: 18px;">
+                <h2 class="section-title">QQF Summary</h2>
+                <p class="stat-copy"><strong>{{ payload.headline }}</strong></p>
+                <div class="meta-row" style="margin-top: 14px;">
+                    <span class="pill pill-default">{{ payload.churn_label }}</span>
+                    <span class="pill pill-default">{{ "Manual APS targets" if payload.aps_target_mode == "manual" else "Adaptive APS targets" }}</span>
+                    <span class="pill pill-success">APS aligned {{ "%.1f%%"|format(overview.aps_alignment_pct) if overview.aps_alignment_pct is not none else "n/a" }}</span>
+                </div>
+                <div class="meta-row">
+                    {% for band in payload.bands or [] %}
+                    <span class="pill pill-default">{{ band.bracket }} {{ band.label }}</span>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="grid grid-2" style="margin-bottom: 18px;">
+                {% for tier in payload.tiers or [] %}
+                <article class="panel">
+                    <h2 class="section-title">{{ tier.bracket }}</h2>
+                    <p class="stat-copy">Avg QQF {{ "%.2f"|format(tier.avg_score) if tier.avg_score is not none else "n/a" }} · APS target {{ tier.band_label }} · APS aligned {{ "%.1f%%"|format(tier.aps_alignment_pct) if tier.aps_alignment_pct is not none else "n/a" }}</p>
+                    <div class="meta-row">
+                        <span class="pill pill-success">Stars {{ tier.status_counts.Star or 0 }}</span>
+                        <span class="pill pill-default">Stable {{ tier.status_counts.Stable or 0 }}</span>
+                        <span class="pill pill-warning">Watch {{ tier.status_counts.Watch or 0 }}</span>
+                        <span class="pill pill-danger">Killzone {{ tier.status_counts.Killzone or 0 }}</span>
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+
+            <section class="grid grid-3">
+                <article class="panel">
+                    <h2 class="section-title">Top Stars</h2>
+                    <div class="list">
+                        {% for item in payload.top_stars[:8] %}
+                        <div class="list-item">
+                            <strong>L{{ item.level }} · {{ item.qqf_status }}</strong>
+                            <span>{{ item.reason }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="panel">
+                    <h2 class="section-title">Top Killzones</h2>
+                    <div class="list">
+                        {% for item in payload.top_killzones[:8] %}
+                        <div class="list-item">
+                            <strong>L{{ item.level }} · {{ item.qqf_status }}</strong>
+                            <span>{{ item.reason }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="panel">
+                    <h2 class="section-title">Watchlist</h2>
+                    <div class="list">
+                        {% for item in payload.watchlist[:8] %}
+                        <div class="list-item">
+                            <strong>L{{ item.level }} · {{ item.qqf_status }}</strong>
+                            <span>{{ item.reason }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
             </section>
         {% elif tab_name == "ab" %}
             {% set summary = payload.summary or {} %}

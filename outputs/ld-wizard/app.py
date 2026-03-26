@@ -16,7 +16,15 @@ from engine.analysis.recommendations import compute_recommendations
 from engine.analysis.main_breakdown import compute_main_breakdown
 from engine.analysis.strategic import compute_strategic_views
 from engine.analysis.ab_test import compute_ab_test_analysis
-from engine.analysis.difficulty_bands import build_aps_adaptive_bands, classify_aps_bracket, format_band_label
+from engine.analysis.qqf import compute_qqf_analysis
+from engine.analysis.strategic import CHURN_METRIC_OPTIONS
+from engine.analysis.difficulty_bands import classify_aps_bracket, format_band_label
+from engine.analysis.aps_targets import (
+    MANUAL_APS_TARGET_FIELDS,
+    default_manual_aps_targets,
+    normalize_manual_aps_targets,
+    resolve_aps_target_bands,
+)
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -38,17 +46,20 @@ _app_data = {
     "recommendations": None,
     "main_breakdown": None,
     "strategic_views": None,
+    "qqf_results": None,
     "ab_test_df": None,
     "ab_test_meta": None,
     "ab_test_results": None,
     "level_range": None,  # Current filter: {"min": int, "max": int} or None
     "analysis_scope": None,  # Current scope: {"start": int, "end": int, "loop_start": int|None}
+    "analysis_config": None,
 }
 
 
 def _run_all_analyses(df):
     """Run all analysis engines on a DataFrame and update _app_data."""
     from engine.parser import compute_summary
+    analysis_config = _current_analysis_config()
     _app_data["df"] = df
     _app_data["summary"] = compute_summary(df)
     _app_data["aps_results"] = compute_aps_ranges(df)
@@ -67,6 +78,12 @@ def _run_all_analyses(df):
         df,
         _app_data.get("analysis_scope"),
         tutorial_max_level=tutorial_max_level,
+        options=analysis_config,
+    )
+    _app_data["qqf_results"] = compute_qqf_analysis(
+        df,
+        _app_data.get("analysis_scope"),
+        options=analysis_config,
     )
     _app_data["ab_test_results"] = compute_ab_test_analysis(
         _app_data.get("ab_test_df"),
@@ -86,12 +103,14 @@ def _clear_primary_analysis_data():
     _app_data["recommendations"] = None
     _app_data["main_breakdown"] = None
     _app_data["strategic_views"] = None
+    _app_data["qqf_results"] = None
     _app_data["level_range"] = None
     _app_data["analysis_scope"] = None
 
 
 def _run_ab_only_analyses():
     _clear_primary_analysis_data()
+    _app_data["analysis_config"] = _current_analysis_config()
     _app_data["ab_test_results"] = compute_ab_test_analysis(
         _app_data.get("ab_test_df"),
         _app_data.get("ab_test_meta"),
@@ -111,6 +130,124 @@ def _get_full_level_bounds(df):
 def _default_analysis_scope(df):
     full_min, full_max = _get_full_level_bounds(df)
     return {"start": full_min, "end": full_max, "loop_start": None}
+
+
+def _default_analysis_config():
+    return {
+        "churn_metric": "d3",
+        "late_trend_bucket_size": 50,
+        "aps_target_mode": "adaptive",
+        "manual_aps_targets": default_manual_aps_targets(),
+    }
+
+
+def _current_analysis_config(overrides=None):
+    config = _default_analysis_config()
+    stored = _app_data.get("analysis_config") or {}
+    config.update({k: v for k, v in stored.items() if k != "manual_aps_targets"})
+    config["manual_aps_targets"] = default_manual_aps_targets()
+    config["manual_aps_targets"].update(normalize_manual_aps_targets(stored.get("manual_aps_targets")))
+
+    if overrides:
+        config.update({k: v for k, v in overrides.items() if k != "manual_aps_targets"})
+        if "manual_aps_targets" in overrides:
+            config["manual_aps_targets"].update(normalize_manual_aps_targets(overrides.get("manual_aps_targets")))
+
+    return config
+
+
+def _coerce_int(value, default, minimum=None, maximum=None):
+    try:
+        numeric = int(value)
+    except (TypeError, ValueError):
+        numeric = default
+    if minimum is not None:
+        numeric = max(minimum, numeric)
+    if maximum is not None:
+        numeric = min(maximum, numeric)
+    return numeric
+
+
+def _normalize_analysis_config(payload, current=None):
+    current_config = _current_analysis_config(current)
+    if payload is None:
+        return current_config
+
+    next_config = _current_analysis_config(current)
+
+    churn_metric = payload.get("churn_metric", payload.get("dr_churn_metric"))
+    if churn_metric is not None:
+        churn_metric = str(churn_metric)
+        if churn_metric not in CHURN_METRIC_OPTIONS:
+            raise ValueError("Unknown churn basis selected.")
+        next_config["churn_metric"] = churn_metric
+
+    if "late_trend_bucket_size" in payload:
+        next_config["late_trend_bucket_size"] = _coerce_int(
+            payload.get("late_trend_bucket_size"),
+            current_config.get("late_trend_bucket_size", 50),
+            minimum=10,
+            maximum=100,
+        )
+
+    aps_target_mode = payload.get("aps_target_mode")
+    if aps_target_mode is not None:
+        aps_target_mode = str(aps_target_mode).strip().lower()
+        if aps_target_mode not in {"adaptive", "manual"}:
+            raise ValueError("APS target mode must be adaptive or manual.")
+        next_config["aps_target_mode"] = aps_target_mode
+
+    manual_payload = {}
+    if isinstance(payload.get("manual_aps_targets"), dict):
+        manual_payload.update(payload.get("manual_aps_targets") or {})
+    for field in MANUAL_APS_TARGET_FIELDS:
+        if field in payload:
+            manual_payload[field] = payload.get(field)
+    if manual_payload:
+        next_config["manual_aps_targets"] = normalize_manual_aps_targets(manual_payload)
+    else:
+        next_config["manual_aps_targets"] = normalize_manual_aps_targets(next_config.get("manual_aps_targets"))
+
+    if next_config["aps_target_mode"] == "manual":
+        resolve_aps_target_bands(
+            [],
+            aps_target_mode="manual",
+            manual_aps_targets=next_config.get("manual_aps_targets"),
+        )
+
+    return next_config
+
+
+def _serialize_analysis_config(config):
+    current = _current_analysis_config(config)
+    return {
+        "churn_metric": current.get("churn_metric"),
+        "late_trend_bucket_size": current.get("late_trend_bucket_size"),
+        "aps_target_mode": current.get("aps_target_mode"),
+        "manual_aps_targets": current.get("manual_aps_targets") or default_manual_aps_targets(),
+    }
+
+
+def _extract_config_overrides(args):
+    overrides = {}
+
+    if "late_trend_bucket_size" in args:
+        overrides["late_trend_bucket_size"] = args.get("late_trend_bucket_size")
+    if "dr_churn_metric" in args:
+        overrides["churn_metric"] = args.get("dr_churn_metric")
+    if "churn_metric" in args:
+        overrides["churn_metric"] = args.get("churn_metric")
+    if "aps_target_mode" in args:
+        overrides["aps_target_mode"] = args.get("aps_target_mode")
+
+    manual_targets = {}
+    for field in MANUAL_APS_TARGET_FIELDS:
+        if field in args:
+            manual_targets[field] = args.get(field)
+    if manual_targets:
+        overrides["manual_aps_targets"] = manual_targets
+
+    return overrides
 
 
 def _scope_labels(df_full, scope):
@@ -159,10 +296,11 @@ def _normalize_analysis_scope(payload, df_full):
     return {"start": start, "end": end, "loop_start": loop_start}, df_filtered
 
 
-def _build_focus_dashboard_payload(late_trend_bucket_size=50, dr_churn_metric="d3"):
+def _build_focus_dashboard_payload(config=None):
     summary = _app_data.get("summary") or {}
     df_full = _app_data.get("df_full")
     scope = _app_data.get("analysis_scope")
+    analysis_config = _current_analysis_config(config)
     if _app_data.get("df") is None or df_full is None:
         return {
             "available": False,
@@ -187,16 +325,14 @@ def _build_focus_dashboard_payload(late_trend_bucket_size=50, dr_churn_metric="d
                 "end_game_loop": {"available": False, "reason": "No level-data workbook is loaded."},
                 "diminishing_returns": {"available": False, "reason": "No level-data workbook is loaded."},
             },
+            "analysis_config": _serialize_analysis_config(analysis_config),
         }
 
     strategic_views = compute_strategic_views(
         _app_data.get("df"),
         scope,
         tutorial_max_level=(_app_data.get("recommendations") or {}).get("tutorial_max_level", 0),
-        options={
-            "late_trend_bucket_size": late_trend_bucket_size,
-            "dr_churn_metric": dr_churn_metric,
-        },
+        options=analysis_config,
     )
 
     return {
@@ -230,6 +366,7 @@ def _build_focus_dashboard_payload(late_trend_bucket_size=50, dr_churn_metric="d
             "end_game_loop": strategic_views.get("end_game_loop", {}),
             "diminishing_returns": strategic_views.get("diminishing_returns", {}),
         },
+        "analysis_config": _serialize_analysis_config(analysis_config),
     }
 
 
@@ -248,14 +385,13 @@ def _build_ab_test_payload(bucket_size=10):
     return payload
 
 
-def _build_export_payload(tab_name, late_trend_bucket_size=50, dr_churn_metric="d3", ab_bucket_size=10):
+def _build_export_payload(tab_name, config=None, ab_bucket_size=10):
     if tab_name == "focus":
-        content = _build_focus_export_markdown(
-            late_trend_bucket_size=late_trend_bucket_size,
-            dr_churn_metric=dr_churn_metric,
-        )
+        content = _build_focus_export_markdown(config=config)
     elif tab_name == "brackets":
-        content = _build_bracket_export_markdown()
+        content = _build_bracket_export_markdown(config=config)
+    elif tab_name == "qqf":
+        content = _build_qqf_export_markdown(config=config)
     elif tab_name == "ab":
         content = _build_ab_export_markdown(bucket_size=ab_bucket_size)
     else:
@@ -268,19 +404,21 @@ def _build_export_payload(tab_name, late_trend_bucket_size=50, dr_churn_metric="
     }
 
 
-def _build_visual_report_context(tab_name, late_trend_bucket_size=50, dr_churn_metric="d3", ab_bucket_size=10):
+def _build_visual_report_context(tab_name, config=None, ab_bucket_size=10):
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    analysis_config = _current_analysis_config(config)
     if tab_name == "focus":
-        payload = _build_focus_dashboard_payload(
-            late_trend_bucket_size=late_trend_bucket_size,
-            dr_churn_metric=dr_churn_metric,
-        )
+        payload = _build_focus_dashboard_payload(config=analysis_config)
         title = "Focus Dashboard Report"
         subtitle = "Stakeholder summary of funnel pacing, late-game APS, loop health, and diminishing returns."
     elif tab_name == "brackets":
-        payload = _build_bracket_performance_payload()
+        payload = _build_bracket_performance_payload(config=analysis_config)
         title = "Bracket Performance Report"
         subtitle = "APS-peer performance, target-tag accuracy, and top/bottom level patterns."
+    elif tab_name == "qqf":
+        payload = _build_qqf_payload(config=analysis_config)
+        title = "QQF Report"
+        subtitle = "Quality qualification framework for level design, using the same churn basis and APS target config as the dashboard."
     elif tab_name == "ab":
         payload = _build_ab_test_payload(bucket_size=ab_bucket_size)
         title = "AB Test Report"
@@ -294,17 +432,172 @@ def _build_visual_report_context(tab_name, late_trend_bucket_size=50, dr_churn_m
         "subtitle": subtitle,
         "generated_at": generated_at,
         "payload": payload,
-        "late_trend_bucket_size": late_trend_bucket_size,
-        "dr_churn_metric": dr_churn_metric,
+        "late_trend_bucket_size": analysis_config.get("late_trend_bucket_size"),
+        "dr_churn_metric": analysis_config.get("churn_metric"),
         "ab_bucket_size": ab_bucket_size,
     }
 
 
-def _build_focus_export_markdown(late_trend_bucket_size=50, dr_churn_metric="d3"):
-    payload = _build_focus_dashboard_payload(
-        late_trend_bucket_size=late_trend_bucket_size,
-        dr_churn_metric=dr_churn_metric,
+def _build_full_report_context(config=None):
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    analysis_config = _current_analysis_config(config)
+    focus = _build_focus_dashboard_payload(config=analysis_config)
+    brackets = _build_bracket_performance_payload(config=analysis_config)
+    qqf = _build_qqf_payload(config=analysis_config)
+
+    payload = _build_full_report_payload(
+        focus_payload=focus,
+        bracket_payload=brackets,
+        qqf_payload=qqf,
+        analysis_config=analysis_config,
     )
+
+    return {
+        "title": "LD Wizard Full Report",
+        "subtitle": "A print-first multi-section report that mirrors the active dashboard scope, churn basis, APS targets, and QQF framework.",
+        "generated_at": generated_at,
+        "payload": payload,
+    }
+
+
+def _build_full_report_payload(focus_payload, bracket_payload, qqf_payload, analysis_config):
+    if not focus_payload.get("available"):
+        return {
+            "available": False,
+            "reason": focus_payload.get("data_quality", {}).get("maturity_detail", "No level-data workbook is loaded."),
+            "analysis_config": _serialize_analysis_config(analysis_config),
+        }
+
+    executive = _build_full_report_executive(focus_payload, bracket_payload, qqf_payload)
+    methodology = _build_full_report_methodology(analysis_config, focus_payload, qqf_payload)
+
+    return {
+        "available": True,
+        "analysis_config": _serialize_analysis_config(analysis_config),
+        "focus": focus_payload,
+        "brackets": bracket_payload,
+        "qqf": qqf_payload,
+        "executive": executive,
+        "methodology": methodology,
+    }
+
+
+def _build_full_report_executive(focus_payload, bracket_payload, qqf_payload):
+    strategic = focus_payload.get("strategic_views") or {}
+    late = strategic.get("late_aps_trend") or {}
+    loop = strategic.get("end_game_loop") or {}
+    dr = strategic.get("diminishing_returns") or {}
+    bracket_overview = bracket_payload.get("overview") or {}
+    tag_accuracy = bracket_payload.get("tag_accuracy") or {}
+    qqf_overview = qqf_payload.get("overview") or {}
+
+    verdict_parts = []
+    if late.get("headline"):
+        verdict_parts.append(late.get("headline"))
+    if dr.get("headline"):
+        verdict_parts.append(dr.get("headline"))
+    if qqf_payload.get("headline"):
+        verdict_parts.append(qqf_payload.get("headline"))
+
+    key_actions = []
+    for item in (late.get("weak_ranges") or [])[:2]:
+        key_actions.append({
+            "title": f"Fix {item.get('range_label')}",
+            "detail": item.get("reason"),
+            "tone": "danger" if item.get("severity") == "high" else "warning",
+        })
+    for item in (loop.get("issues") or [])[:2]:
+        key_actions.append({
+            "title": f"Revisit {item.get('range_label')}",
+            "detail": item.get("reason"),
+            "tone": "warning" if item.get("severity") != "high" else "danger",
+        })
+    if tag_accuracy.get("worst_target_bracket"):
+        key_actions.append({
+            "title": f"Audit {tag_accuracy.get('worst_target_bracket')} tags",
+            "detail": f"{tag_accuracy.get('worst_target_accuracy_pct', 0):.1f}% of that tag currently matches the active APS target ladder.",
+            "tone": "warning",
+        })
+    for item in (qqf_payload.get("watchlist") or [])[:2]:
+        key_actions.append({
+            "title": f"QQF watch L{item.get('level')}",
+            "detail": item.get("reason"),
+            "tone": "danger" if item.get("qqf_status") == "Killzone" else "warning",
+        })
+
+    opportunities = []
+    sweet_zone = (dr.get("zones") or {}).get("sweet_spot")
+    if sweet_zone:
+        opportunities.append({
+            "title": "Use the APS sweet spot",
+            "detail": f"The current diminishing-returns model favors APS {sweet_zone} for monetization with controlled churn.",
+            "tone": "success",
+        })
+    if bracket_overview.get("strongest_bracket"):
+        opportunities.append({
+            "title": f"Study {bracket_overview.get('strongest_bracket')}",
+            "detail": f"This APS peer band has the strongest average business score at {bracket_overview.get('strongest_score', 0):.3f}.",
+            "tone": "success",
+        })
+    for item in (qqf_payload.get("top_stars") or [])[:2]:
+        opportunities.append({
+            "title": f"Replicate L{item.get('level')}",
+            "detail": item.get("reason"),
+            "tone": "success",
+        })
+
+    return {
+        "headline": " ".join(part for part in verdict_parts[:3] if part) or "The dashboard findings are ready for stakeholder review.",
+        "key_actions": key_actions[:6],
+        "opportunities": opportunities[:5],
+        "summary_cards": [
+            {
+                "label": "Levels In Scope",
+                "value": focus_payload.get("summary", {}).get("total_levels"),
+                "copy": focus_payload.get("scope", {}).get("analysis_range_label"),
+            },
+            {
+                "label": "Sweet Spot",
+                "value": sweet_zone or "n/a",
+                "copy": dr.get("churn_label", "Churn basis unavailable"),
+            },
+            {
+                "label": "Strongest APS Band",
+                "value": bracket_overview.get("strongest_bracket") or "n/a",
+                "copy": f"Business {bracket_overview.get('strongest_score', 0):.3f}" if bracket_overview.get("strongest_score") is not None else "No bracket score",
+            },
+            {
+                "label": "QQF Stars",
+                "value": qqf_overview.get("star_count", 0),
+                "copy": f"Watchlist {qqf_overview.get('watch_count', 0)} · Killzone {qqf_overview.get('killzone_count', 0)}",
+            },
+        ],
+    }
+
+
+def _build_full_report_methodology(analysis_config, focus_payload, qqf_payload):
+    strategic = focus_payload.get("strategic_views") or {}
+    late = strategic.get("late_aps_trend") or {}
+    dr = strategic.get("diminishing_returns") or {}
+    return {
+        "scope": focus_payload.get("scope") or {},
+        "churn_label": late.get("churn_label") or dr.get("churn_label"),
+        "late_trend_bucket_size": late.get("bucket_size") or analysis_config.get("late_trend_bucket_size"),
+        "aps_target_mode": analysis_config.get("aps_target_mode"),
+        "manual_aps_targets": analysis_config.get("manual_aps_targets") or {},
+        "qqf_note": qqf_payload.get("metric_note"),
+        "dr_note": dr.get("metric_note"),
+        "late_note": (
+            f"Late APS target band is optimized from {late.get('target_band', {}).get('window_size', 10)}-level windows "
+            f"using {late.get('churn_label', 'selected churn')} and a minimum funnel reach guardrail."
+            if late.get("available")
+            else "Late APS trend is unavailable for this scope."
+        ),
+    }
+
+
+def _build_focus_export_markdown(config=None):
+    payload = _build_focus_dashboard_payload(config=config)
     lines = [
         "# Focus Dashboard Report",
         "",
@@ -336,7 +629,7 @@ def _build_focus_export_markdown(late_trend_bucket_size=50, dr_churn_metric="d3"
         f"- Avg completion: {_format_report_value(summary.get('avg_completion_pct'), 1, '%')}",
         "",
         "## Late APS Trend",
-        f"- Window size: {late.get('bucket_size', late_trend_bucket_size)} levels",
+        f"- Window size: {late.get('bucket_size', payload.get('analysis_config', {}).get('late_trend_bucket_size', 50))} levels",
     ])
     if late.get("available"):
         lines.append(f"- Headline: {late.get('headline')}")
@@ -372,8 +665,8 @@ def _build_focus_export_markdown(late_trend_bucket_size=50, dr_churn_metric="d3"
     return "\n".join(lines)
 
 
-def _build_bracket_export_markdown():
-    payload = _build_bracket_performance_payload()
+def _build_bracket_export_markdown(config=None):
+    payload = _build_bracket_performance_payload(config=config)
     lines = [
         "# Bracket Performance Report",
         "",
@@ -416,6 +709,49 @@ def _build_bracket_export_markdown():
         bottom_levels = ", ".join(f"L{item.get('level')}" for item in (bracket.get("bottom_levels") or [])[:3]) or "None"
         lines.append(f"  - Top levels: {top_levels}")
         lines.append(f"  - Bottom levels: {bottom_levels}")
+
+    return "\n".join(lines)
+
+
+def _build_qqf_export_markdown(config=None):
+    payload = _build_qqf_payload(config=config)
+    lines = [
+        "# QQF Report",
+        "",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "",
+    ]
+    if not payload.get("available"):
+        lines.extend(["## Status", payload.get("reason", "QQF is unavailable.")])
+        return "\n".join(lines)
+
+    overview = payload.get("overview") or {}
+    lines.extend([
+        "## Overview",
+        f"- Headline: {payload.get('headline', 'No headline generated.')}",
+        f"- Churn basis: {payload.get('churn_label', 'Unknown')}",
+        f"- APS target mode: {payload.get('aps_target_mode', 'adaptive')}",
+        f"- Stars: {overview.get('star_count', 0)}",
+        f"- Stable: {overview.get('stable_count', 0)}",
+        f"- Watch: {overview.get('watch_count', 0)}",
+        f"- Killzone: {overview.get('killzone_count', 0)}",
+        f"- APS alignment: {_format_report_value(overview.get('aps_alignment_pct'), 1, '%')}",
+        "",
+        "## Tier Summary",
+    ])
+    for tier in (payload.get("tiers") or []):
+        lines.append(
+            f"- {tier.get('bracket')}: avg QQF {tier.get('avg_score')} · APS target {tier.get('band_label')} · "
+            f"Stars {tier.get('status_counts', {}).get('Star', 0)} · Killzones {tier.get('status_counts', {}).get('Killzone', 0)}"
+        )
+
+    lines.extend(["", "## Top Stars"])
+    for item in (payload.get("top_stars") or [])[:5]:
+        lines.append(f"- L{item.get('level')}: QQF {item.get('qqf_score')} · {item.get('reason')}")
+
+    lines.extend(["", "## Watchlist"])
+    for item in (payload.get("watchlist") or [])[:5]:
+        lines.append(f"- L{item.get('level')}: QQF {item.get('qqf_score')} · {item.get('reason')}")
 
     return "\n".join(lines)
 
@@ -511,10 +847,11 @@ def _format_metric_export_delta(value, metric_type):
     return _format_signed_value(value, 2 if metric_type == "pct" else 1, suffix)
 
 
-def _build_bracket_performance_payload():
+def _build_bracket_performance_payload(config=None):
     ranking_results = _app_data.get("ranking_results") or {}
     rankings = ranking_results.get("rankings") or []
-    tag_accuracy = _build_difficulty_tag_accuracy_payload(_app_data.get("df"))
+    analysis_config = _current_analysis_config(config)
+    tag_accuracy = _build_difficulty_tag_accuracy_payload(_app_data.get("df"), analysis_config)
     if not rankings and not tag_accuracy.get("available"):
         return {
             "available": False,
@@ -609,10 +946,22 @@ def _build_bracket_performance_payload():
         "brackets": bracket_cards,
         "insights": ranking_results.get("insights", [])[:4],
         "tag_accuracy": tag_accuracy,
+        "analysis_config": _serialize_analysis_config(analysis_config),
     }
 
 
-def _build_difficulty_tag_accuracy_payload(df):
+def _build_qqf_payload(config=None):
+    if _app_data.get("df") is None:
+        return {"available": False, "reason": "No scoped level data is available."}
+    analysis_config = _current_analysis_config(config)
+    return compute_qqf_analysis(
+        _app_data.get("df"),
+        _app_data.get("analysis_scope"),
+        options=analysis_config,
+    )
+
+
+def _build_difficulty_tag_accuracy_payload(df, config=None):
     if df is None or len(df) == 0:
         return {
             "available": False,
@@ -647,7 +996,12 @@ def _build_difficulty_tag_accuracy_payload(df):
     aps_values = [row["aps"] for row in scored_rows]
     aps_min = min(aps_values)
     aps_max = max(aps_values)
-    band_edges = build_aps_adaptive_bands(aps_values)
+    analysis_config = _current_analysis_config(config)
+    band_edges = resolve_aps_target_bands(
+        aps_values,
+        aps_target_mode=analysis_config.get("aps_target_mode"),
+        manual_aps_targets=analysis_config.get("manual_aps_targets"),
+    )
 
     for row in scored_rows:
         actual_bracket = classify_aps_bracket(row["aps"], band_edges)
@@ -723,7 +1077,11 @@ def _build_difficulty_tag_accuracy_payload(df):
 
     return {
         "available": True,
-        "headline": "Target tags are checked against an adaptive APS ladder that spreads bands in log space and trims the extreme top tail, so the easier brackets do not collapse while Wall stays reserved for genuinely high APS content.",
+        "headline": (
+            "Target tags are checked against manual APS target bands."
+            if analysis_config.get("aps_target_mode") == "manual"
+            else "Target tags are checked against an adaptive APS ladder that spreads bands in log space and trims the extreme top tail, so the easier brackets do not collapse while Wall stays reserved for genuinely high APS content."
+        ),
         "overall_accuracy_pct": round(total_aligned / total_scored * 100, 1),
         "aligned_level_count": total_aligned,
         "scored_level_count": total_scored,
@@ -732,12 +1090,12 @@ def _build_difficulty_tag_accuracy_payload(df):
         "aps_range_min": round(aps_min, 3),
         "aps_range_max": round(aps_max, 3),
         "aps_range_label": format_band_label(aps_min, aps_max),
-        "band_method": "adaptive_log",
+        "band_method": "manual" if analysis_config.get("aps_target_mode") == "manual" else "adaptive_log",
         "bands": [
             {
                 "bracket": bracket,
-                "min": round(edges["min"], 3),
-                "max": round(edges["max"], 3),
+                "min": round(edges["min"], 3) if edges.get("min") is not None else None,
+                "max": round(edges["max"], 3) if edges.get("max") is not None else None,
                 "label": format_band_label(
                     edges["min"],
                     edges["max"],
@@ -899,9 +1257,11 @@ def upload_files():
 
         _app_data["df_full"] = df
         _app_data["analysis_scope"] = _default_analysis_scope(df)
+        _app_data["analysis_config"] = _default_analysis_config()
         _app_data["level_range"] = None
         _run_all_analyses(df)
     else:
+        _app_data["analysis_config"] = _default_analysis_config()
         _run_ab_only_analyses()
 
     # Store metadata in session
@@ -1022,20 +1382,30 @@ def api_recommendations():
 def api_focus_dashboard():
     """Focused dashboard payload with the smallest high-signal analysis surface."""
     try:
-        late_trend_bucket_size = int(request.args.get("late_trend_bucket_size", 50))
-    except (TypeError, ValueError):
-        late_trend_bucket_size = 50
-    dr_churn_metric = str(request.args.get("dr_churn_metric", "d3"))
-    return json.dumps(_build_focus_dashboard_payload(
-        late_trend_bucket_size=late_trend_bucket_size,
-        dr_churn_metric=dr_churn_metric,
-    ))
+        config = _normalize_analysis_config(_extract_config_overrides(request.args))
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)}), 400
+    return json.dumps(_build_focus_dashboard_payload(config=config))
 
 
 @app.route("/api/data/bracket-performance")
 def api_bracket_performance():
     """Bracket-first ranking payload for a dedicated performance tab."""
-    return json.dumps(_build_bracket_performance_payload())
+    try:
+        config = _normalize_analysis_config(_extract_config_overrides(request.args))
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)}), 400
+    return json.dumps(_build_bracket_performance_payload(config=config))
+
+
+@app.route("/api/data/qqf")
+def api_qqf():
+    """QQF payload tied to the current churn basis and APS target configuration."""
+    try:
+        config = _normalize_analysis_config(_extract_config_overrides(request.args))
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)}), 400
+    return json.dumps(_build_qqf_payload(config=config))
 
 
 @app.route("/api/data/ab-test")
@@ -1060,20 +1430,15 @@ def api_main_breakdown():
 def api_export_report():
     tab_name = str(request.args.get("tab", "focus"))
     try:
-        late_trend_bucket_size = int(request.args.get("late_trend_bucket_size", 50))
-    except (TypeError, ValueError):
-        late_trend_bucket_size = 50
-    dr_churn_metric = str(request.args.get("dr_churn_metric", "d3"))
-    try:
         ab_bucket_size = int(request.args.get("ab_bucket_size", 10))
     except (TypeError, ValueError):
         ab_bucket_size = 10
 
     try:
+        config = _normalize_analysis_config(_extract_config_overrides(request.args))
         payload = _build_export_payload(
             tab_name=tab_name,
-            late_trend_bucket_size=late_trend_bucket_size,
-            dr_churn_metric=dr_churn_metric,
+            config=config,
             ab_bucket_size=ab_bucket_size,
         )
     except ValueError as exc:
@@ -1086,26 +1451,32 @@ def api_export_report():
 def view_report():
     tab_name = str(request.args.get("tab", "focus"))
     try:
-        late_trend_bucket_size = int(request.args.get("late_trend_bucket_size", 50))
-    except (TypeError, ValueError):
-        late_trend_bucket_size = 50
-    dr_churn_metric = str(request.args.get("dr_churn_metric", "d3"))
-    try:
         ab_bucket_size = int(request.args.get("ab_bucket_size", 10))
     except (TypeError, ValueError):
         ab_bucket_size = 10
 
     try:
+        config = _normalize_analysis_config(_extract_config_overrides(request.args))
         context = _build_visual_report_context(
             tab_name=tab_name,
-            late_trend_bucket_size=late_trend_bucket_size,
-            dr_churn_metric=dr_churn_metric,
+            config=config,
             ab_bucket_size=ab_bucket_size,
         )
     except ValueError as exc:
         return json.dumps({"error": str(exc)}), 400
 
     return render_template("export_report.html", **context)
+
+
+@app.route("/report/full")
+def view_full_report():
+    try:
+        config = _normalize_analysis_config(_extract_config_overrides(request.args))
+        context = _build_full_report_context(config=config)
+    except ValueError as exc:
+        return json.dumps({"error": str(exc)}), 400
+
+    return render_template("full_report.html", **context)
 
 
 @app.route("/api/reanalyze", methods=["POST"])
@@ -1120,10 +1491,12 @@ def api_reanalyze():
 
     try:
         scope, df_filtered = _normalize_analysis_scope(payload, df_full)
+        analysis_config = _normalize_analysis_config(payload)
     except ValueError as exc:
         return json.dumps({"error": str(exc)}), 400
 
     _app_data["analysis_scope"] = scope
+    _app_data["analysis_config"] = analysis_config
     _app_data["level_range"] = (
         None
         if (scope["start"] == full_min and scope["end"] == full_max)
@@ -1138,6 +1511,7 @@ def api_reanalyze():
         "analysis_scope": scope,
         "level_range": _app_data["level_range"],
         "full_range": {"min": full_min, "max": full_max},
+        "analysis_config": _serialize_analysis_config(analysis_config),
         "summary": _app_data["summary"],
     })
 
@@ -1161,6 +1535,7 @@ def api_level_range():
         "full_max": int(df_full["level"].max()),
         "current_filter": _app_data["level_range"],
         "analysis_scope": scope,
+        "analysis_config": _serialize_analysis_config(_app_data.get("analysis_config")),
     })
 
 
@@ -1176,6 +1551,7 @@ def reset():
     _app_data["ab_test_df"] = None
     _app_data["ab_test_meta"] = None
     _app_data["ab_test_results"] = None
+    _app_data["analysis_config"] = _default_analysis_config()
     session.clear()
     flash("Session reset. Upload new files to begin.", "info")
     return redirect(url_for("index"))

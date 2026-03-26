@@ -6,6 +6,21 @@ const dashboardState = {
     abBucketSize: 10,
     lateTrendBucketSize: 50,
     drChurnMetric: "d3",
+    apsTargetMode: "adaptive",
+    manualApsTargets: defaultManualApsTargets(),
+};
+
+const MANUAL_APS_FIELD_MAP = {
+    easy_min: "easyMin",
+    easy_max: "easyMax",
+    medium_min: "mediumMin",
+    medium_max: "mediumMax",
+    hard_min: "hardMin",
+    hard_max: "hardMax",
+    super_hard_min: "superHardMin",
+    super_hard_max: "superHardMax",
+    wall_min: "wallMin",
+    wall_max: "wallMax",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -28,11 +43,23 @@ function bindRangeControls() {
     const startInput = document.getElementById("levelStart");
     const endInput = document.getElementById("levelEnd");
     const loopStartInput = document.getElementById("loopStart");
+    const apsTargetMode = document.getElementById("apsTargetMode");
+    const trendBucketInput = document.getElementById("lateTrendBucketSizeTop");
 
     applyBtn?.addEventListener("click", applyLevelRange);
     resetBtn?.addEventListener("click", resetLevelRange);
+    apsTargetMode?.addEventListener("change", syncApsTargetModeUI);
 
-    [startInput, endInput, loopStartInput].forEach((input) => {
+    [startInput, endInput, loopStartInput, trendBucketInput].forEach((input) => {
+        input?.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                applyLevelRange();
+            }
+        });
+    });
+
+    Object.values(MANUAL_APS_FIELD_MAP).forEach((id) => {
+        const input = document.getElementById(id);
         input?.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
                 applyLevelRange();
@@ -99,15 +126,18 @@ async function refreshDashboardData() {
     showError("");
 
     try {
-        const [rangeData, focusData, bracketData, abData] = await Promise.all([
+        const sharedParams = buildSharedAnalysisParams();
+        const [rangeData, focusData, bracketData, qqfData, abData] = await Promise.all([
             fetchJSON("/api/data/level-range"),
-            fetchJSON(`/api/data/focus-dashboard?late_trend_bucket_size=${dashboardState.lateTrendBucketSize}&dr_churn_metric=${encodeURIComponent(dashboardState.drChurnMetric)}`),
-            fetchJSON("/api/data/bracket-performance"),
+            fetchJSON(`/api/data/focus-dashboard?${sharedParams.toString()}`),
+            fetchJSON(`/api/data/bracket-performance?${sharedParams.toString()}`),
+            fetchJSON(`/api/data/qqf?${buildQqfParams().toString()}`),
             fetchJSON(`/api/data/ab-test?bucket_size=${dashboardState.abBucketSize}`),
         ]);
         updateRangeUI(rangeData);
         renderFocusDashboard(focusData);
         renderBracketPerformance(bracketData);
+        renderQQF(qqfData);
         renderABTest(abData);
         if (focusData.available === false && abData.available) {
             setActiveDashboardTab("ab");
@@ -121,48 +151,97 @@ async function refreshDashboardData() {
 
 
 function bindFocusViewControls() {
-    const lateTrendInput = document.getElementById("lateTrendBucketSize");
-    const lateTrendBtn = document.getElementById("applyLateTrendBucketBtn");
+    const lateTrendInput = document.getElementById("lateTrendBucketSizeTop");
     const drSelect = document.getElementById("drChurnType");
-    const drBtn = document.getElementById("applyDrChurnBtn");
+    const apsTargetMode = document.getElementById("apsTargetMode");
 
-    if (lateTrendInput && lateTrendBtn) {
+    if (lateTrendInput) {
         lateTrendInput.value = String(dashboardState.lateTrendBucketSize);
-        lateTrendBtn.addEventListener("click", applyLateTrendBucketSize);
         lateTrendInput.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
                 event.preventDefault();
-                applyLateTrendBucketSize();
+                applyLevelRange();
             }
         });
     }
 
-    if (drSelect && drBtn) {
+    if (drSelect) {
         drSelect.value = dashboardState.drChurnMetric;
-        drBtn.addEventListener("click", applyDrChurnMetric);
+    }
+
+    if (apsTargetMode) {
+        apsTargetMode.value = dashboardState.apsTargetMode;
+        syncApsTargetModeUI();
     }
 }
 
 
-function applyLateTrendBucketSize() {
-    const input = document.getElementById("lateTrendBucketSize");
-    if (!input) {
-        return;
+function buildSharedAnalysisParams() {
+    const params = new URLSearchParams();
+    params.set("late_trend_bucket_size", String(dashboardState.lateTrendBucketSize));
+    params.set("dr_churn_metric", dashboardState.drChurnMetric);
+    params.set("aps_target_mode", dashboardState.apsTargetMode);
+    for (const [key, value] of Object.entries(dashboardState.manualApsTargets || {})) {
+        if (value !== "" && value != null) {
+            params.set(key, String(value));
+        }
     }
-    const nextValue = Math.max(10, Math.min(100, Number.parseInt(input.value || "50", 10) || 50));
-    dashboardState.lateTrendBucketSize = nextValue;
-    input.value = String(nextValue);
-    refreshDashboardData();
+    return params;
 }
 
 
-function applyDrChurnMetric() {
-    const select = document.getElementById("drChurnType");
-    if (!select) {
-        return;
+function buildQqfParams() {
+    const params = buildSharedAnalysisParams();
+    params.set("churn_metric", dashboardState.drChurnMetric);
+    return params;
+}
+
+
+function defaultManualApsTargets() {
+    return {
+        easy_min: "",
+        easy_max: "",
+        medium_min: "",
+        medium_max: "",
+        hard_min: "",
+        hard_max: "",
+        super_hard_min: "",
+        super_hard_max: "",
+        wall_min: "",
+        wall_max: "",
+    };
+}
+
+
+function readManualApsTargetsFromUI() {
+    const next = defaultManualApsTargets();
+    Object.entries(MANUAL_APS_FIELD_MAP).forEach(([key, id]) => {
+        const input = document.getElementById(id);
+        next[key] = input?.value?.trim() || "";
+    });
+    return next;
+}
+
+
+function writeManualApsTargetsToUI(targets) {
+    const values = targets || defaultManualApsTargets();
+    Object.entries(MANUAL_APS_FIELD_MAP).forEach(([key, id]) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = values[key] ?? "";
+        }
+    });
+}
+
+
+function syncApsTargetModeUI() {
+    const select = document.getElementById("apsTargetMode");
+    const panel = document.getElementById("manualApsTargetsPanel");
+    const mode = select?.value || dashboardState.apsTargetMode;
+    dashboardState.apsTargetMode = mode;
+    if (panel) {
+        panel.hidden = mode !== "manual";
     }
-    dashboardState.drChurnMetric = select.value || "d3";
-    refreshDashboardData();
 }
 
 
@@ -185,11 +264,14 @@ function bindABControls() {
 
 
 function bindExportControls() {
+    document.getElementById("fullReportBtn")?.addEventListener("click", openFullReport);
     document.getElementById("exportFocusBtn")?.addEventListener("click", () => exportReport("focus"));
     document.getElementById("exportBracketBtn")?.addEventListener("click", () => exportReport("brackets"));
+    document.getElementById("exportQqfBtn")?.addEventListener("click", () => exportReport("qqf"));
     document.getElementById("exportAbBtn")?.addEventListener("click", () => exportReport("ab"));
     document.getElementById("visualFocusBtn")?.addEventListener("click", () => openVisualReport("focus"));
     document.getElementById("visualBracketBtn")?.addEventListener("click", () => openVisualReport("brackets"));
+    document.getElementById("visualQqfBtn")?.addEventListener("click", () => openVisualReport("qqf"));
     document.getElementById("visualAbBtn")?.addEventListener("click", () => openVisualReport("ab"));
 }
 
@@ -198,9 +280,8 @@ async function exportReport(tabName) {
     showError("");
     try {
         const params = new URLSearchParams({ tab: tabName });
-        if (tabName === "focus") {
-            params.set("late_trend_bucket_size", String(dashboardState.lateTrendBucketSize));
-            params.set("dr_churn_metric", dashboardState.drChurnMetric);
+        if (tabName === "focus" || tabName === "brackets" || tabName === "qqf") {
+            buildSharedAnalysisParams().forEach((value, key) => params.set(key, value));
         }
         if (tabName === "ab") {
             params.set("ab_bucket_size", String(dashboardState.abBucketSize));
@@ -229,14 +310,19 @@ async function exportReport(tabName) {
 
 function openVisualReport(tabName) {
     const params = new URLSearchParams({ tab: tabName });
-    if (tabName === "focus") {
-        params.set("late_trend_bucket_size", String(dashboardState.lateTrendBucketSize));
-        params.set("dr_churn_metric", dashboardState.drChurnMetric);
+    if (tabName === "focus" || tabName === "brackets" || tabName === "qqf") {
+        buildSharedAnalysisParams().forEach((value, key) => params.set(key, value));
     }
     if (tabName === "ab") {
         params.set("ab_bucket_size", String(dashboardState.abBucketSize));
     }
     window.open(`/report/view?${params.toString()}`, "_blank", "noopener");
+}
+
+
+function openFullReport() {
+    const params = buildSharedAnalysisParams();
+    window.open(`/report/full?${params.toString()}`, "_blank", "noopener");
 }
 
 
@@ -258,6 +344,9 @@ function updateRangeUI(data) {
     const loopStartInput = document.getElementById("loopStart");
     const resetBtn = document.getElementById("resetRangeBtn");
     const rangeInfo = document.getElementById("rangeInfo");
+    const apsTargetMode = document.getElementById("apsTargetMode");
+    const churnSelect = document.getElementById("drChurnType");
+    const trendBucketInput = document.getElementById("lateTrendBucketSizeTop");
 
     if (!startInput || !endInput || !loopStartInput || !resetBtn || !rangeInfo) {
         return;
@@ -274,6 +363,21 @@ function updateRangeUI(data) {
         if (applyBtn) {
             applyBtn.disabled = true;
         }
+        if (churnSelect) {
+            churnSelect.disabled = true;
+        }
+        if (apsTargetMode) {
+            apsTargetMode.disabled = true;
+        }
+        if (trendBucketInput) {
+            trendBucketInput.disabled = true;
+        }
+        Object.values(MANUAL_APS_FIELD_MAP).forEach((id) => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.disabled = true;
+            }
+        });
         resetBtn.style.display = "none";
         rangeInfo.textContent = "AB-only mode: upload a Level Data file to use analysis scope controls.";
         return;
@@ -285,15 +389,43 @@ function updateRangeUI(data) {
     if (applyBtn) {
         applyBtn.disabled = false;
     }
+    if (churnSelect) {
+        churnSelect.disabled = false;
+    }
+    if (apsTargetMode) {
+        apsTargetMode.disabled = false;
+    }
+    if (trendBucketInput) {
+        trendBucketInput.disabled = false;
+    }
+    Object.values(MANUAL_APS_FIELD_MAP).forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.disabled = false;
+        }
+    });
 
     const fullMin = data.full_min;
     const fullMax = data.full_max;
     const scope = data.analysis_scope || { start: fullMin, end: fullMax, loop_start: null };
+    const config = data.analysis_config || {};
     const isCustomScope = scope.start !== fullMin || scope.end !== fullMax || scope.loop_start != null;
 
     startInput.value = scope.start;
     endInput.value = scope.end;
     loopStartInput.value = scope.loop_start ?? "";
+    if (apsTargetMode) {
+        apsTargetMode.value = config.aps_target_mode || dashboardState.apsTargetMode;
+    }
+    dashboardState.apsTargetMode = config.aps_target_mode || dashboardState.apsTargetMode;
+    dashboardState.drChurnMetric = config.churn_metric || dashboardState.drChurnMetric;
+    dashboardState.lateTrendBucketSize = Number(config.late_trend_bucket_size || dashboardState.lateTrendBucketSize);
+    dashboardState.manualApsTargets = { ...defaultManualApsTargets(), ...(config.manual_aps_targets || {}) };
+    if (trendBucketInput) {
+        trendBucketInput.value = String(dashboardState.lateTrendBucketSize);
+    }
+    writeManualApsTargetsToUI(dashboardState.manualApsTargets);
+    syncApsTargetModeUI();
     resetBtn.style.display = isCustomScope ? "inline-block" : "none";
     rangeInfo.textContent = isCustomScope
         ? `Full data L${fullMin}–L${fullMax}. Analyzing L${scope.start}–L${scope.end}${scope.loop_start != null ? ` · Loop starts L${scope.loop_start}` : ""}`
@@ -305,10 +437,18 @@ async function applyLevelRange() {
     const startInput = document.getElementById("levelStart");
     const endInput = document.getElementById("levelEnd");
     const loopStartInput = document.getElementById("loopStart");
+    const trendBucketInput = document.getElementById("lateTrendBucketSizeTop");
     const start = Number(startInput?.value);
     const end = Number(endInput?.value);
     const loopStartRaw = loopStartInput?.value?.trim();
     const loopStart = loopStartRaw ? Number(loopStartRaw) : null;
+    const trendBucketSize = Math.max(
+        10,
+        Math.min(
+            100,
+            Number.parseInt(trendBucketInput?.value || String(dashboardState.lateTrendBucketSize), 10) || dashboardState.lateTrendBucketSize
+        )
+    );
 
     if (Number.isNaN(start) || Number.isNaN(end)) {
         showError("Please enter both a start and end level.");
@@ -323,6 +463,16 @@ async function applyLevelRange() {
         return;
     }
 
+    const churnSelect = document.getElementById("drChurnType");
+    const apsTargetMode = document.getElementById("apsTargetMode");
+    dashboardState.drChurnMetric = churnSelect?.value || dashboardState.drChurnMetric;
+    dashboardState.apsTargetMode = apsTargetMode?.value || dashboardState.apsTargetMode;
+    dashboardState.lateTrendBucketSize = trendBucketSize;
+    dashboardState.manualApsTargets = readManualApsTargetsFromUI();
+    if (trendBucketInput) {
+        trendBucketInput.value = String(trendBucketSize);
+    }
+
     setLoading(true);
     showError("");
 
@@ -330,12 +480,57 @@ async function applyLevelRange() {
         await fetchJSON("/api/reanalyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ start, end, loop_start: loopStart }),
+            body: JSON.stringify({
+                start,
+                end,
+                loop_start: loopStart,
+                churn_metric: dashboardState.drChurnMetric,
+                late_trend_bucket_size: dashboardState.lateTrendBucketSize,
+                aps_target_mode: dashboardState.apsTargetMode,
+                manual_aps_targets: dashboardState.manualApsTargets,
+            }),
         });
 
         await refreshDashboardData();
     } catch (error) {
         showError(error.message || "Unable to apply scope");
+        setLoading(false);
+    }
+}
+
+
+async function applyConfigUpdate(configPayload) {
+    const startInput = document.getElementById("levelStart");
+    const endInput = document.getElementById("levelEnd");
+    const loopStartInput = document.getElementById("loopStart");
+    const churnSelect = document.getElementById("drChurnType");
+    const apsTargetMode = document.getElementById("apsTargetMode");
+    const loopStartRaw = loopStartInput?.value?.trim();
+    dashboardState.drChurnMetric = churnSelect?.value || dashboardState.drChurnMetric;
+    dashboardState.apsTargetMode = apsTargetMode?.value || dashboardState.apsTargetMode;
+    dashboardState.manualApsTargets = readManualApsTargetsFromUI();
+    const payload = {
+        start: Number(startInput?.value),
+        end: Number(endInput?.value),
+        loop_start: loopStartRaw ? Number(loopStartRaw) : null,
+        churn_metric: dashboardState.drChurnMetric,
+        late_trend_bucket_size: dashboardState.lateTrendBucketSize,
+        aps_target_mode: dashboardState.apsTargetMode,
+        manual_aps_targets: dashboardState.manualApsTargets,
+        ...configPayload,
+    };
+
+    setLoading(true);
+    showError("");
+    try {
+        await fetchJSON("/api/reanalyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        await refreshDashboardData();
+    } catch (error) {
+        showError(error.message || "Unable to apply settings");
         setLoading(false);
     }
 }
@@ -372,6 +567,7 @@ function bindDashboardTabs() {
 function setActiveDashboardTab(tabName) {
     const focusPanel = document.getElementById("focusDashboard");
     const bracketPanel = document.getElementById("bracketPerformancePanel");
+    const qqfPanel = document.getElementById("qqfPanel");
     const abPanel = document.getElementById("abTestPanel");
 
     document.querySelectorAll("[data-dashboard-tab]").forEach((button) => {
@@ -384,6 +580,9 @@ function setActiveDashboardTab(tabName) {
     if (bracketPanel) {
         bracketPanel.hidden = tabName !== "brackets";
     }
+    if (qqfPanel) {
+        qqfPanel.hidden = tabName !== "qqf";
+    }
     if (abPanel) {
         abPanel.hidden = tabName !== "ab";
     }
@@ -394,6 +593,7 @@ function renderFocusDashboard(data) {
     const strategic = data.strategic_views || {};
     const lateTrend = strategic.late_aps_trend || {};
     const diminishingReturns = strategic.diminishing_returns || {};
+    const analysisConfig = data.analysis_config || {};
 
     renderScopeCard(data.scope, data.summary || {}, data.data_quality || {});
     renderTopCard("lateTrend", lateTrend, {
@@ -411,7 +611,7 @@ function renderFocusDashboard(data) {
         danger: "Returns fading",
     });
 
-    const lateTrendInput = document.getElementById("lateTrendBucketSize");
+    const lateTrendInput = document.getElementById("lateTrendBucketSizeTop");
     if (lateTrendInput && lateTrend.bucket_size) {
         lateTrendInput.value = String(lateTrend.bucket_size);
         dashboardState.lateTrendBucketSize = lateTrend.bucket_size;
@@ -431,6 +631,18 @@ function renderFocusDashboard(data) {
         dashboardState.drChurnMetric = selectedChurnMetric;
     }
     setText("drChurnNote", selectedChurnLabel);
+    dashboardState.apsTargetMode = analysisConfig.aps_target_mode || dashboardState.apsTargetMode;
+    dashboardState.manualApsTargets = { ...defaultManualApsTargets(), ...(analysisConfig.manual_aps_targets || {}) };
+    writeManualApsTargetsToUI(dashboardState.manualApsTargets);
+    const apsModeSelect = document.getElementById("apsTargetMode");
+    if (apsModeSelect) {
+        apsModeSelect.value = dashboardState.apsTargetMode;
+    }
+    syncApsTargetModeUI();
+    setText(
+        "apsTargetNote",
+        dashboardState.apsTargetMode === "manual" ? "Manual APS targets" : "Adaptive APS targets"
+    );
 
     renderLateTrend(lateTrend);
     renderEndGameLoop(strategic.end_game_loop || {});
@@ -498,7 +710,7 @@ function renderBracketPerformance(data) {
         tagAccuracy.available && tagAccuracy.bands?.length
             ? [
                 pill(`Scoped APS ${tagAccuracy.aps_range_label || "unknown"}`),
-                pill(tagAccuracy.band_method === "adaptive_log" ? "Adaptive log APS bands" : "APS bands"),
+                pill(tagAccuracy.band_method === "manual" ? "Manual APS targets" : tagAccuracy.band_method === "adaptive_log" ? "Adaptive log APS bands" : "APS bands"),
                 ...tagAccuracy.bands.map((band) => pill(`${band.bracket} ${band.label}`)),
             ].join("")
             : ""
@@ -515,6 +727,71 @@ function renderBracketPerformance(data) {
         data.brackets?.length
             ? data.brackets.map((bracket) => renderBracketCard(bracket)).join("")
             : emptyState("Peer ranking data is unavailable for the current scope.")
+    );
+}
+
+
+function renderQQF(data) {
+    if (!data || !data.available) {
+        setText("qqfStarsValue", "--");
+        setText("qqfStarsCopy", data?.reason || "QQF is unavailable.");
+        setText("qqfStableValue", "--");
+        setText("qqfStableCopy", "");
+        setText("qqfWatchValue", "--");
+        setText("qqfWatchCopy", "");
+        setText("qqfKillzoneValue", "--");
+        setText("qqfKillzoneCopy", "");
+        setText("qqfHeadline", data?.reason || "QQF is unavailable.");
+        setHTML("qqfMeta", "");
+        setHTML("qqfTierCards", emptyState(data?.reason || "QQF is unavailable."));
+        setHTML("qqfTopStars", "");
+        setHTML("qqfTopKillzones", "");
+        setHTML("qqfWatchlist", "");
+        return;
+    }
+
+    const overview = data.overview || {};
+    setText("qqfStarsValue", String(overview.star_count ?? "--"));
+    setText("qqfStarsCopy", "Best study levels inside their target tags.");
+    setText("qqfStableValue", String(overview.stable_count ?? "--"));
+    setText("qqfStableCopy", "Healthy levels without major correction signals.");
+    setText("qqfWatchValue", String(overview.watch_count ?? "--"));
+    setText("qqfWatchCopy", "Needs attention before it drifts into killzone.");
+    setText("qqfKillzoneValue", String(overview.killzone_count ?? "--"));
+    setText("qqfKillzoneCopy", "Highest-priority fix candidates.");
+    setText("qqfHeadline", data.headline || "QQF ready.");
+    setHTML(
+        "qqfMeta",
+        [
+            pill(data.churn_label || "Churn n/a"),
+            pill(data.aps_target_mode === "manual" ? "Manual APS targets" : "Adaptive APS targets"),
+            pill(`APS aligned ${overview.aps_alignment_pct != null ? `${overview.aps_alignment_pct.toFixed(1)}%` : "n/a"}`),
+            ...(data.bands || []).map((band) => pill(`${band.bracket} ${band.label}`)),
+        ].join("")
+    );
+    setHTML(
+        "qqfTierCards",
+        data.tiers?.length
+            ? data.tiers.map((tier) => renderQqfTierCard(tier)).join("")
+            : emptyState("No QQF tier summaries are available.")
+    );
+    setHTML(
+        "qqfTopStars",
+        data.top_stars?.length
+            ? data.top_stars.map((item) => renderQqfLevel(item, "success")).join("")
+            : emptyState("No star levels were identified in the current scope.")
+    );
+    setHTML(
+        "qqfTopKillzones",
+        data.top_killzones?.length
+            ? data.top_killzones.map((item) => renderQqfLevel(item, "danger")).join("")
+            : emptyState("No killzone levels were identified in the current scope.")
+    );
+    setHTML(
+        "qqfWatchlist",
+        data.watchlist?.length
+            ? data.watchlist.map((item) => renderQqfLevel(item, item.qqf_status === "Killzone" ? "danger" : "warning")).join("")
+            : emptyState("No watchlist levels were identified in the current scope.")
     );
 }
 
@@ -956,6 +1233,64 @@ function renderTagAccuracyCard(target) {
             <div class="focus-list focus-list-compact">${mismatchExamples}</div>
         </article>
     `;
+}
+
+
+function renderQqfTierCard(tier) {
+    return `
+        <article class="focus-panel focus-bracket-card">
+            <div class="focus-item-header">
+                <div>
+                    <h3>${escapeHtml(tier.bracket)}</h3>
+                    <p class="focus-item-copy">Avg QQF ${formatMaybe(tier.avg_score, 2)} · APS target ${escapeHtml(tier.band_label)} · APS aligned ${formatMaybe(tier.aps_alignment_pct, 1, "%")}</p>
+                </div>
+                <div class="focus-pill-row">
+                    ${pill(`${tier.level_count} levels`)}
+                    ${pill(`Stars ${tier.status_counts?.Star || 0}`, "success")}
+                    ${pill(`Killzones ${tier.status_counts?.Killzone || 0}`, (tier.status_counts?.Killzone || 0) > 0 ? "danger" : "default")}
+                </div>
+            </div>
+            <div class="focus-split focus-split-tight">
+                <div>
+                    <div class="focus-panel-title">Top Levels</div>
+                    <div class="focus-list focus-list-compact">
+                        ${(tier.top_levels || []).length
+                            ? tier.top_levels.map((item) => renderQqfLevel(item, "success")).join("")
+                            : emptyState("No star-side levels in this target tag.")}
+                    </div>
+                </div>
+                <div>
+                    <div class="focus-panel-title">Fragile Levels</div>
+                    <div class="focus-list focus-list-compact">
+                        ${(tier.bottom_levels || []).length
+                            ? tier.bottom_levels.map((item) => renderQqfLevel(item, item.qqf_status === "Killzone" ? "danger" : "warning")).join("")
+                            : emptyState("No fragile levels in this target tag.")}
+                    </div>
+                </div>
+            </div>
+        </article>
+    `;
+}
+
+
+function renderQqfLevel(item, tone) {
+    const summary = [
+        item.target_bracket ? `Target ${item.target_bracket}` : null,
+        item.aps != null ? `APS ${item.aps.toFixed(2)}` : null,
+        item.completion_pct != null ? `Completion ${item.completion_pct.toFixed(1)}%` : null,
+        item.churn_pct != null ? `Churn ${item.churn_pct.toFixed(2)}%` : null,
+        item.payer_pct != null ? `Payers ${item.payer_pct.toFixed(2)}%` : null,
+    ].filter(Boolean).join(" · ");
+
+    return itemCard(
+        `L${item.level}`,
+        `${summary}${summary ? " · " : ""}${item.reason || "No QQF explanation available."}`,
+        [
+            pill(item.qqf_status || "QQF", tone),
+            pill(`Score ${Number(item.qqf_score || 0).toFixed(2)}`),
+        ],
+        true
+    );
 }
 
 
